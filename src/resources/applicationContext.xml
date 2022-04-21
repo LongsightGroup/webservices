@@ -258,6 +258,7 @@
         <property name="timeService" ref="org.sakaiproject.time.api.TimeService"/>
         <property name="questionPoolServiceImpl" ref="org.sakaiproject.tool.assessment.shared.api.questionpool.QuestionPoolServiceAPI"/>
         <property name="lessonBuilderAccessAPI" ref="org.sakaiproject.lessonbuildertool.LessonBuilderAccessAPI"/>
+        <property name="formattedText" ref="org.sakaiproject.util.api.FormattedText" />
         <property name="archiveService" ref="org.sakaiproject.archive.api.ArchiveService"/>
         <property name="memoryService" ref="org.sakaiproject.memory.api.MemoryService"/>
         <property name="sqlService" ref="org.sakaiproject.db.api.SqlService"/>
