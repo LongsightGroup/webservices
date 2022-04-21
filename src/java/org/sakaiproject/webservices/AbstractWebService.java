@@ -304,6 +304,10 @@ public class AbstractWebService {
     public void setLessonBuilderAccessAPI(LessonBuilderAccessAPI lessonBuilderAccessAPI) {
         this.lessonBuilderAccessAPI = lessonBuilderAccessAPI;
     }
+    @WebMethod(exclude = true)
+    public void setFormattedText(FormattedText formattedText) {
+        this.formattedText = formattedText;
+    }
 
     @WebMethod(exclude = true)
     public void setArchiveService(ArchiveService archiveService) {
