@@ -105,8 +105,9 @@ public class AbstractWebService {
     protected QuestionPoolServiceAPI questionPoolServiceImpl;
     protected LessonBuilderAccessAPI lessonBuilderAccessAPI;
     protected ArchiveService archiveService;
-    protected MemoryService memoryService;
+    protected FormattedText formattedText;
     protected SqlService sqlService;
+    protected MemoryService memoryService;
     protected ImportService importService;
     protected SyllabusManager syllabusManager;
     protected ProfileLogic profileLogic;
