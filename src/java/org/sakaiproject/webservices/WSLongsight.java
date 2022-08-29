@@ -2710,7 +2710,8 @@ public class WSLongsight extends AbstractWebService {
                         for (Map.Entry<String, CourseGrade> entry : courseGrades.entrySet()) {
     						final String studentEid = students.get(entry.getKey());
     						final CourseGrade cg = entry.getValue();
-   
+    						if (StringUtils.isBlank(studentEid) || cg == null || StringUtils.isBlank(cg.getEnteredGrade())) continue;
+
                                 Node override = dom.createElement("override");
                                 course.appendChild(override);
 
@@ -2727,7 +2728,9 @@ public class WSLongsight extends AbstractWebService {
                         for (Entry<String, CourseGrade> entry : courseGrades.entrySet()) {
     						final String studentEid = students.get(entry.getKey());
     						final CourseGrade cg = entry.getValue();
-  
+    						if (StringUtils.isBlank(studentEid) || cg == null) continue;
+    						final String calcGrade = StringUtils.isBlank(cg.getCalculatedGrade()) ? "" : cg.getCalculatedGrade();
+
                                 Node student = dom.createElement("student");
                                 course.appendChild(student);
 
@@ -2738,7 +2741,7 @@ public class WSLongsight extends AbstractWebService {
                                 Node course_grade = dom.createElement("course_grade");
                                 student.appendChild(course_grade);
 
-                                course_grade.appendChild(dom.createTextNode(cg.getCalculatedGrade()));
+                                course_grade.appendChild(dom.createTextNode(calcGrade));
                         }
 
                         gradeResult = Xml.writeDocumentToString(dom);
