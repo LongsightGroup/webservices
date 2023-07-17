@@ -1,15 +1,18 @@
 package org.sakaiproject.webservices;
 
+import org.sakaiproject.grading.api.GradeDefinition;
 import org.sakaiproject.tool.api.Session;
 import org.sakaiproject.tool.api.SessionManager;
 import org.sakaiproject.user.api.User;
 import org.sakaiproject.user.api.UserDirectoryService;
 import org.sakaiproject.authz.api.SecurityService;
 import org.sakaiproject.site.api.SiteService;
-import org.sakaiproject.service.gradebook.shared.Assignment;
-import org.sakaiproject.service.gradebook.shared.GradeDefinition;
-import org.sakaiproject.service.gradebook.shared.GradebookService;
-import org.sakaiproject.service.gradebook.shared.GradebookExternalAssessmentService;
+import org.sakaiproject.grading.api.Assignment;
+import org.sakaiproject.grading.api.GradingScaleDefinition;
+import org.sakaiproject.grading.api.GradingService;
+import org.sakaiproject.grading.api.model.GradingScale;
+import org.sakaiproject.grading.api.model.GradeMapping;
+import org.sakaiproject.grading.api.model.Gradebook;
 
 import java.util.Date;
 import java.util.Iterator;
@@ -37,8 +40,6 @@ public class MHAssignment extends AbstractWebService {
 
     public static final short SC_NOTFOUND = 1;
     public static final short SC_UPDATED = 2;
-
-    protected GradebookExternalAssessmentService gradebookExternalAssessmentService;
 
     @WebMethod
     @Path("/test")
@@ -107,7 +108,7 @@ public class MHAssignment extends AbstractWebService {
         String uid = getUserId(userID);
 
         // Update score.
-        gradebookExternalAssessmentService.updateExternalAssessmentScore(gradebookID, assignmentID, uid, Points);
+        gradingService.updateExternalAssessmentScore(gradebookID, assignmentID, uid, Points);
 	}
 
 	@WebMethod
@@ -148,10 +149,10 @@ public class MHAssignment extends AbstractWebService {
         // Add assignment.
         if (addUpdateRemoveAssignment.equals("add"))
         {
-            if (gradebookExternalAssessmentService.isExternalAssignmentDefined(gradebookID, assignmentID))
+            if (gradingService.isExternalAssignmentDefined(gradebookID, assignmentID))
             {
                 // Update assignment in gradebook.
-                gradebookExternalAssessmentService.updateExternalAssessment(
+                gradingService.updateExternalAssessment(
                     gradebookID,
                     assignmentID,
                     "",
@@ -165,7 +166,7 @@ public class MHAssignment extends AbstractWebService {
             else
             {
                 // Add assignment to gradebook.
-                gradebookExternalAssessmentService.addExternalAssessment(
+                gradingService.addExternalAssessment(
                     gradebookID,
                     assignmentID,
                     "",
@@ -187,9 +188,9 @@ public class MHAssignment extends AbstractWebService {
         if (addUpdateRemoveAssignment.equals("remove"))
         {
             // Remove assignment from gradebook.
-            if (gradebookExternalAssessmentService.isExternalAssignmentDefined(gradebookID, assignmentID))
+            if (gradingService.isExternalAssignmentDefined(gradebookID, assignmentID))
             {
-				gradebookExternalAssessmentService.removeExternalAssessment(gradebookID, assignmentID);
+				gradingService.removeExternalAssignment(gradebookID, assignmentID);
 			}
         }
 	}
@@ -221,8 +222,8 @@ public class MHAssignment extends AbstractWebService {
 
         // Collate the assignments for the specified site (gradebook id).
         String jsonList = "";
-        if (gradebookService.isGradebookDefined(gradebookID)) {
-            Iterator<?> i = gradebookService.getAssignments(gradebookID).iterator();
+        if (1==1) {
+            Iterator<?> i = gradingService.getAssignments(gradebookID).iterator();
             for (;i.hasNext();) {
                 if (!"".equals(jsonList)) {
                     jsonList = jsonList + ",";
@@ -272,9 +273,9 @@ public class MHAssignment extends AbstractWebService {
 
         // Collate the grade definitions  for the specified site (gradebook id).
         String jsonAssignment = "";
-        if (gradebookService.isGradebookDefined(gradebookID)) {
+        if (1==1) {
             // Get the assignment.
-            org.sakaiproject.service.gradebook.shared.Assignment assignment = gradebookService.getAssignment(gradebookID, assignmentName);
+            org.sakaiproject.grading.api.Assignment assignment = gradingService.getAssignment(gradebookID, assignmentName);
 
             if (assignment == null) {
                 return "Assignment " + assignmentName + " not found.";
@@ -287,10 +288,10 @@ public class MHAssignment extends AbstractWebService {
             jsonAssignment += "\"id\":\"" + assignment.getId().toString() + "\",";
             jsonAssignment += "\"name\":\"" + assignment.getName() + "\",";
             jsonAssignment += "\"points\":\"" + assignment.getPoints().toString() + "\",";
-            jsonAssignment += "\"ungraded\":\"" + assignment.isUngraded() + "\",";
-            jsonAssignment += "\"isCounted\":\"" + assignment.isCounted() + "\",";
-            jsonAssignment += "\"isExternallyMaintained\":\"" + assignment.isExternallyMaintained() + "\",";
-            jsonAssignment += "\"isReleased\":\"" + assignment.isReleased() + "\"";
+            jsonAssignment += "\"ungraded\":\"" + assignment.getUngraded() + "\",";
+            jsonAssignment += "\"isCounted\":\"" + assignment.getCounted() + "\",";
+            jsonAssignment += "\"isExternallyMaintained\":\"" + assignment.getExternallyMaintained() + "\",";
+            jsonAssignment += "\"isReleased\":\"" + assignment.getReleased() + "\"";
         }
         return "[" + jsonAssignment + "]";
     }
@@ -339,17 +340,17 @@ public class MHAssignment extends AbstractWebService {
         // Remove.
         if ("remove".equals(addUpdateRemoveAssignment)) {
             // Remove assignment from gradebook.
-            gradebookExternalAssessmentService.removeExternalAssessment(gradebookID, assignmentID);
+            gradingService.removeExternalAssignment(gradebookID, assignmentID);
             return usiResult(USI_DELETED, assignmentID);
         }
 
-        Boolean isAssignment = gradebookExternalAssessmentService.isAssignmentDefined(gradebookID, assignment_Title);
-        Boolean isExternalAssignment = gradebookExternalAssessmentService.isExternalAssignmentDefined(gradebookID, assignmentID);
+        Boolean isAssignment = gradingService.isAssignmentDefined(gradebookID, assignment_Title);
+        Boolean isExternalAssignment = gradingService.isExternalAssignmentDefined(gradebookID, assignmentID);
 
         // Existing assignment by name.
         if (isAssignment) {
             // Get the assignment.
-            org.sakaiproject.service.gradebook.shared.Assignment assignment = gradebookService.getAssignment(gradebookID, assignment_Title);
+            org.sakaiproject.grading.api.Assignment assignment = gradingService.getAssignment(gradebookID, assignment_Title);
 
             // Internally maintained, nothing to do.
             if (assignment.getExternalId() == null) {
@@ -374,7 +375,7 @@ public class MHAssignment extends AbstractWebService {
         }
 
         // New assignment.
-        gradebookExternalAssessmentService.addExternalAssessment(
+        gradingService.addExternalAssessment(
             gradebookID,
             assignmentID,
             "",
@@ -424,9 +425,9 @@ public class MHAssignment extends AbstractWebService {
 
         // Collate the grade definitions  for the specified site (gradebook id).
         String jsonGrade = "";
-        if (gradebookService.isGradebookDefined(gradebookID)) {
+        if (1==1) {
             // Get the assignment id in the gradebook.
-            org.sakaiproject.service.gradebook.shared.Assignment assignment = gradebookService.getAssignment(gradebookID, assignmentName);
+            org.sakaiproject.grading.api.Assignment assignment = gradingService.getAssignment(gradebookID, assignmentName);
 
             if (assignment == null) {
                 return "Assignment " + assignmentName + " not found.";
@@ -434,7 +435,7 @@ public class MHAssignment extends AbstractWebService {
 
             // Get the grade.
             Long gbObjectId = assignment.getId();
-            GradeDefinition grade = gradebookService.getGradeDefinitionForStudentForItem(gradebookID, gbObjectId, uid);
+            GradeDefinition grade = gradingService.getGradeDefinitionForStudentForItem(gradebookID, gbObjectId, uid);
 
             if (grade == null) {
                 return "Grade definition for " + userID + " not found.";
@@ -494,24 +495,19 @@ public class MHAssignment extends AbstractWebService {
         // Get the user id from the directory.
         String uid = getUserId(userID);
 
-        if (!gradebookService.isAssignmentDefined(gradebookID, assignmentName)) {
+        if (!gradingService.isAssignmentDefined(gradebookID, assignmentName)) {
             return SC_NOTFOUND;
         }
 
         // Make sure this is an internal assignment..
-        org.sakaiproject.service.gradebook.shared.Assignment assignment = gradebookService.getAssignment(gradebookID, assignmentName);
-        if (assignment.isExternallyMaintained()) {
+        org.sakaiproject.grading.api.Assignment assignment = gradingService.getAssignment(gradebookID, assignmentName);
+        if (assignment.getExternallyMaintained()) {
             return SC_NOTFOUND;
         }
 
         // Set the assignment score for the user.
-        gradebookService.setAssignmentScoreString(gradebookID, assignmentName, uid, Score, "");
+        gradingService.setAssignmentScoreString(gradebookID, assignmentName, uid, Score, "");
         return SC_UPDATED;
-    }
-
-    @WebMethod(exclude = true)
-    public void setGradebookExternalAssessmentService(GradebookExternalAssessmentService gradebookExternalAssessmentService) {
-        this.gradebookExternalAssessmentService = gradebookExternalAssessmentService;
     }
 
     /**

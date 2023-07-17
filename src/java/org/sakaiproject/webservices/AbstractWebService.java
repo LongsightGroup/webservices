@@ -24,6 +24,7 @@ import org.sakaiproject.api.app.messageforums.MessageForumsMessageManager;
 import org.sakaiproject.api.app.messageforums.MessageForumsTypeManager;
 import org.sakaiproject.api.app.messageforums.AreaManager;
 import org.sakaiproject.api.app.scheduler.SchedulerManager;
+import org.sakaiproject.archive.api.ArchiveService;
 import org.sakaiproject.assignment.api.AssignmentService;
 import org.sakaiproject.authz.api.AuthzGroupService;
 import org.sakaiproject.authz.api.SecurityService;
@@ -31,16 +32,18 @@ import org.sakaiproject.calendar.api.CalendarService;
 import org.sakaiproject.cluster.api.ClusterService;
 import org.sakaiproject.component.api.ServerConfigurationService;
 import org.sakaiproject.content.api.ContentHostingService;
+import org.sakaiproject.db.api.SqlService;
 import org.sakaiproject.entity.api.EntityManager;
 import org.sakaiproject.event.api.EventTrackingService;
 import org.sakaiproject.event.api.UsageSessionService;
 import org.sakaiproject.event.api.ActivityService;
+import org.sakaiproject.grading.api.GradingService;
+import org.sakaiproject.log.api.LogConfigurationManager;
 import org.sakaiproject.messagebundle.api.MessageBundleService;
 import org.sakaiproject.profile2.logic.ProfileLogic;
 import org.sakaiproject.profile2.logic.SakaiProxy;
-import org.sakaiproject.service.gradebook.shared.GradebookExternalAssessmentService;
-import org.sakaiproject.service.gradebook.shared.GradebookService;
 import org.sakaiproject.site.api.SiteService;
+import org.sakaiproject.sitemanage.api.SiteManageService;
 import org.sakaiproject.thread_local.api.ThreadLocalManager;
 import org.sakaiproject.time.api.TimeService;
 import org.sakaiproject.tool.api.Session;
@@ -55,11 +58,10 @@ import org.sakaiproject.tool.assessment.samlite.api.SamLiteService;
 import org.sakaiproject.id.api.IdManager;
 import org.sakaiproject.lessonbuildertool.LessonBuilderAccessAPI;
 import org.sakaiproject.tool.assessment.shared.api.questionpool.QuestionPoolServiceAPI;
-import org.sakaiproject.archive.api.ArchiveService;
+import org.sakaiproject.userauditservice.api.UserAuditRegistration;
 import org.sakaiproject.memory.api.MemoryService;
 import org.sakaiproject.db.api.SqlService;
 import org.sakaiproject.importer.api.ImportService;
-import org.sakaiproject.api.app.syllabus.SyllabusManager;
 
 import javax.jws.WebMethod;
 import javax.jws.WebService;
@@ -71,14 +73,14 @@ import javax.servlet.http.HttpServletRequest;
 @WebService
 public class AbstractWebService {
     protected SessionManager sessionManager;
-
     protected AssignmentService assignmentService;
     protected AuthenticationManager authenticationManager;
     protected AuthzGroupService authzGroupService;
     protected CalendarService calendarService;
     protected ClusterService clusterService;
     protected EventTrackingService eventTrackingService;
-    protected GradebookService gradebookService;
+    protected GradingService gradingService;
+    protected LogConfigurationManager logConfigurationManager;
     protected SecurityService securityService;
     protected ServerConfigurationService serverConfigurationService;
     protected SiteService siteService;
@@ -100,16 +102,16 @@ public class AbstractWebService {
     protected ShortenedUrlService shortenedUrlService;
     protected SamLiteService samLiteService;
     protected IdManager idManager;
-    protected GradebookExternalAssessmentService gradebookExternalAssessmentService;
     protected ActivityService activityService;
     protected QuestionPoolServiceAPI questionPoolServiceImpl;
     protected LessonBuilderAccessAPI lessonBuilderAccessAPI;
     protected ArchiveService archiveService;
     protected FormattedText formattedText;
     protected SqlService sqlService;
+    protected UserAuditRegistration userAuditRegistration;
+    protected SiteManageService siteManageService;
     protected MemoryService memoryService;
     protected ImportService importService;
-    protected SyllabusManager syllabusManager;
     protected ProfileLogic profileLogic;
     protected SakaiProxy sakaiProxy;
 
@@ -168,8 +170,13 @@ public class AbstractWebService {
     }
 
     @WebMethod(exclude = true)
-    public void setGradebookService(GradebookService gradebookService) {
-        this.gradebookService = gradebookService;
+    public void setGradingService(GradingService gradingService) {
+        this.gradingService = gradingService;
+    }
+
+    @WebMethod(exclude = true)
+    public void setLogConfigurationManager(LogConfigurationManager logConfigurationManager) {
+        this.logConfigurationManager = logConfigurationManager;
     }
     
     @WebMethod(exclude = true)
@@ -283,11 +290,6 @@ public class AbstractWebService {
     }
     
     @WebMethod(exclude = true)
-    public void setGradebookExternalAssessmentService(GradebookExternalAssessmentService service) {
-        this.gradebookExternalAssessmentService = service;
-    }
-
-    @WebMethod(exclude = true)
     public void setActivityService(ActivityService activityService) {
         this.activityService = activityService;
     }
@@ -306,6 +308,7 @@ public class AbstractWebService {
     public void setLessonBuilderAccessAPI(LessonBuilderAccessAPI lessonBuilderAccessAPI) {
         this.lessonBuilderAccessAPI = lessonBuilderAccessAPI;
     }
+    
     @WebMethod(exclude = true)
     public void setFormattedText(FormattedText formattedText) {
         this.formattedText = formattedText;
@@ -332,8 +335,8 @@ public class AbstractWebService {
     }
     
     @WebMethod(exclude = true)
-    public void setSyllabusManager(SyllabusManager syllabusManager) {
-        this.syllabusManager = syllabusManager;
+    public void setUserAuditRegistration(UserAuditRegistration userAuditRegistration) {
+        this.userAuditRegistration = userAuditRegistration;
     }
 
     @WebMethod(exclude = true)

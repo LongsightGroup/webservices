@@ -218,12 +218,6 @@
         <jaxws:properties> <entry key="exceptionMessageCauseEnabled" value="true" /> <entry key="faultStackTraceEnabled" value="true" /> </jaxws:properties>
     </jaxws:endpoint>
 
-    <jaxws:endpoint id="Brock"
-                    implementor="#org.sakaiproject.webservices.Brock"
-                    address="/soap/brock">
-        <jaxws:properties> <entry key="exceptionMessageCauseEnabled" value="true" /> <entry key="faultStackTraceEnabled" value="true" /> </jaxws:properties>
-    </jaxws:endpoint>
-
     <bean id="org.sakaiproject.webservices.AbstractWebService" class="org.sakaiproject.webservices.AbstractWebService">
         <property name="serverConfigurationService" ref="org.sakaiproject.component.api.ServerConfigurationService"/>
         <property name="sessionManager" ref="org.sakaiproject.tool.api.SessionManager"/>
@@ -232,7 +226,6 @@
         <property name="userDirectoryService" ref="org.sakaiproject.user.api.UserDirectoryService"/>
         <property name="authzGroupService" ref="org.sakaiproject.authz.api.AuthzGroupService"/>
         <property name="calendarService" ref="org.sakaiproject.calendar.api.CalendarService"/>
-        <property name="clusterService" ref="org.sakaiproject.cluster.api.ClusterService"/>
         <property name="contentHostingService" ref="org.sakaiproject.content.api.ContentHostingService"/>
         <property name="entityManager" ref="org.sakaiproject.entity.api.EntityManager"/>
         <property name="eventTrackingService" ref="org.sakaiproject.event.api.EventTrackingService"/>
@@ -240,7 +233,7 @@
         <property name="siteService" ref="org.sakaiproject.site.api.SiteService"/>
         <property name="toolManager" ref="org.sakaiproject.tool.api.ToolManager"/>
         <property name="assignmentService" ref="org.sakaiproject.assignment.api.AssignmentService"/>
-        <property name="gradebookService" ref="org.sakaiproject.service.gradebook.GradebookService"/>
+        <property name="gradingService" ref="org.sakaiproject.grading.api.GradingService"/>
         <property name="discussionForumManager" ref="org.sakaiproject.api.app.messageforums.ui.DiscussionForumManager"/>
         <property name="messageBundleService" ref="org.sakaiproject.messagebundle.api.MessageBundleService"/>
         <property name="messageForumsForumManager" ref="org.sakaiproject.api.app.messageforums.MessageForumsForumManager"/>
@@ -252,14 +245,17 @@
         <property name="shortenedUrlService" ref="org.sakaiproject.shortenedurl.api.ShortenedUrlService"/>
         <property name="samLiteService" ref="org_sakaiproject_tool_assessment_services_samlite_SamLiteService"/>
         <property name="idManager" ref="org.sakaiproject.id.api.IdManager"/>
-        <property name="gradebookExternalAssessmentService" ref="org.sakaiproject.service.gradebook.GradebookExternalAssessmentService"/>
         <property name="activityService" ref="org.sakaiproject.event.api.ActivityService"/>
         <property name="preferencesService" ref="org.sakaiproject.user.api.PreferencesService"/>
         <property name="timeService" ref="org.sakaiproject.time.api.TimeService"/>
         <property name="questionPoolServiceImpl" ref="org.sakaiproject.tool.assessment.shared.api.questionpool.QuestionPoolServiceAPI"/>
+        <property name="archiveService" ref="org.sakaiproject.archive.api.ArchiveService"/>
         <property name="lessonBuilderAccessAPI" ref="org.sakaiproject.lessonbuildertool.LessonBuilderAccessAPI"/>
         <property name="formattedText" ref="org.sakaiproject.util.api.FormattedText" />
-        <property name="archiveService" ref="org.sakaiproject.archive.api.ArchiveService"/>
+        <property name="logConfigurationManager" ref="org.sakaiproject.log.api.LogConfigurationManager"/>
+        <property name="userAuditRegistration" ref="org.sakaiproject.userauditservice.api.UserAuditRegistration.webservice"/>
+        <property name="siteManageService" ref="org.sakaiproject.sitemanage.api.SiteManageService.webservice"/>
+        <property name="clusterService" ref="org.sakaiproject.cluster.api.ClusterService"/>
         <property name="memoryService" ref="org.sakaiproject.memory.api.MemoryService"/>
         <property name="sqlService" ref="org.sakaiproject.db.api.SqlService"/>
         <property name="importService" ref="org.sakaiproject.importer.api.ImportService"/>
@@ -287,12 +283,8 @@
          <property name="eventQueryService" ref="org.sakaiproject.event.api.EventQueryService"/>
      </bean>
     <bean id="org.sakaiproject.webservices.SakaiGradebook" class="org.sakaiproject.webservices.SakaiGradebook" parent="org.sakaiproject.webservices.AbstractWebService" >
-        <property name="gradebookFrameworkService" ref="org.sakaiproject.service.gradebook.GradebookFrameworkService"/>
     </bean>
-    <bean id="org.sakaiproject.webservices.Brock" class="org.sakaiproject.webservices.Brock" parent="org.sakaiproject.webservices.AbstractWebService" />
     <bean id="org.sakaiproject.webservices.WSLongsight" class="org.sakaiproject.webservices.WSLongsight" parent="org.sakaiproject.webservices.AbstractWebService" />
-    <bean id="org.sakaiproject.webservices.MHAssignment" class="org.sakaiproject.webservices.MHAssignment" parent="org.sakaiproject.webservices.AbstractWebService">
-        <property name="gradebookExternalAssessmentService" ref="org.sakaiproject.service.gradebook.GradebookExternalAssessmentService"/>
-    </bean>
+    <bean id="org.sakaiproject.webservices.MHAssignment" class="org.sakaiproject.webservices.MHAssignment" parent="org.sakaiproject.webservices.AbstractWebService" />
 
 </beans>

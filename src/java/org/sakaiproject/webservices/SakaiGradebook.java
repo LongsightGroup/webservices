@@ -15,8 +15,6 @@
  */
 package org.sakaiproject.webservices;
 
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -36,21 +34,12 @@ import javax.ws.rs.QueryParam;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-
-import org.sakaiproject.service.gradebook.shared.Assignment;
-import org.sakaiproject.service.gradebook.shared.GradeDefinition;
-import org.sakaiproject.service.gradebook.shared.GradebookFrameworkService;
-import org.sakaiproject.service.gradebook.shared.GradingScaleDefinition;
+import org.sakaiproject.grading.api.GradingScaleDefinition;
 import org.sakaiproject.tool.api.Session;
-import org.sakaiproject.tool.gradebook.GradingScale;
-import org.sakaiproject.user.api.User;
-import org.sakaiproject.user.api.UserNotDefinedException;
-import org.sakaiproject.util.Xml;
-import org.sakaiproject.tool.gradebook.GradeMapping;
-import org.sakaiproject.tool.gradebook.Gradebook;
+import org.sakaiproject.grading.api.GradingService;
+import org.sakaiproject.grading.api.model.GradingScale;
+import org.sakaiproject.grading.api.model.GradeMapping;
+import org.sakaiproject.grading.api.model.Gradebook;
 import org.sakaiproject.site.api.SiteService.SelectionType;
 import org.sakaiproject.site.api.SiteService.SortType;
 
@@ -63,11 +52,11 @@ import org.sakaiproject.site.api.SiteService.SortType;
 @Slf4j
 public class SakaiGradebook extends AbstractWebService {
 
-    protected GradebookFrameworkService gradebookFrameworkService;
+    protected GradingService gradingService;
 
     @WebMethod(exclude = true)
-    public void setGradebookFrameworkService(GradebookFrameworkService gradebookFrameworkService) {
-        this.gradebookFrameworkService = gradebookFrameworkService;
+    public void setGradingService(GradingService gradingService) {
+        this.gradingService = gradingService;
     }
 
 
@@ -102,7 +91,7 @@ public class SakaiGradebook extends AbstractWebService {
             }
 
             //Get all the scales
-            List<GradingScale> gradingScales = gradebookFrameworkService.getAvailableGradingScales();
+            List<GradingScale> gradingScales = gradingService.getAvailableGradingScales();
 
             List<GradingScaleDefinition> gradingScaleDefinitions= new ArrayList<>();
             //The API returns GradingScales, but needs GradingScalingDefinitions, so we'll need to convert them.
@@ -140,52 +129,48 @@ public class SakaiGradebook extends AbstractWebService {
             }
 
             //Finally we update all the scales
-            gradebookFrameworkService.setAvailableGradingScales(gradingScaleDefinitions);
+            gradingService.setAvailableGradingScales(gradingScaleDefinitions);
 
             // Now we need to add this scale to ALL the actual gradebooks if it is new,
             // and if not new, then update (if updateOld=true) the values in the ALL the old gradebooks.
             // Seems that there is not any service that returns the full list of all the gradebooks,
-            // but with the siteid we can call gradebookService.isGradebookDefined(siteId)
-            // and know if the site has gradebook or not, and use gradebookService.getGradebook(siteId); to
+            // and know if the site has gradebook or not, and use gradingService.getGradebook(siteId); to
             // have all of them.
 
             List<String> siteList = siteService.getSiteIds(SelectionType.NON_USER, null, null, null, SortType.NONE, null);
 
             for (String siteId : siteList) {
-                if (gradebookService.isGradebookDefined(siteId)){
-                    //If the site has gradebook then we
-                    Gradebook gradebook = (Gradebook)gradebookService.getGradebook(siteId);
-                    String gradebookUid=gradebook.getUid();
-                    Long gradebookId=gradebook.getId();
+                //If the site has gradebook then we
+                Gradebook gradebook = gradingService.getGradebook(siteId);
+                String gradebookUid=gradebook.getUid();
+                Long gradebookId=gradebook.getId();
 
-                    if (!isUpdate) { //If it is new then we need to add the scale to every actual gradebook in the list
-                            gradebookFrameworkService.saveGradeMappingToGradebook(scaleUuid, gradebookUid);
-                            log.debug("SakaiGradebook: Adding the new scale " + scaleUuid + " in gradebook: " + gradebook.getUid());
+                if (!isUpdate) { //If it is new then we need to add the scale to every actual gradebook in the list
+                        gradingService.saveGradeMappingToGradebook(scaleUuid, gradebookUid);
+                        log.debug("SakaiGradebook: Adding the new scale " + scaleUuid + " in gradebook: " + gradebook.getUid());
 
-                    }else{ //If it is not new, then update the actual gradebooks with the new values ONLY if updateOld is true
-                        if (updateOld)  {
-                            Set<GradeMapping> gradeMappings =gradebookService.getGradebookGradeMappings(gradebookId);
-                                for (Iterator iter2 = gradeMappings.iterator(); iter2.hasNext();) {
-                                    GradeMapping gradeMapping = (GradeMapping)iter2.next();
-                                    if (gradeMapping.getGradingScale().getUid().equals(scaleUuid)){
-                                        if (updateOnlyNotCustomized){ //We will only update the ones that teachers have not customized
-                                            if (mapsAreEqual(defaultBottomPercentsOld, gradeMapping.getGradeMap())){
-                                                log.debug("SakaiGradebook:They are equals " + gradebook.getUid());
-                                                gradeMapping.setDefaultValues();
-                                            }else{
-                                                log.debug("SakaiGradebook:They are NOT equals " + gradebook.getUid());
-                                            }
-                                        }else{
+                }else{ //If it is not new, then update the actual gradebooks with the new values ONLY if updateOld is true
+                    if (updateOld)  {
+                        Set<GradeMapping> gradeMappings = gradingService.getGradebookGradeMappings(gradebookId);
+                            for (Iterator iter2 = gradeMappings.iterator(); iter2.hasNext();) {
+                                GradeMapping gradeMapping = (GradeMapping)iter2.next();
+                                if (gradeMapping.getGradingScale().getUid().equals(scaleUuid)){
+                                    if (updateOnlyNotCustomized){ //We will only update the ones that teachers have not customized
+                                        if (mapsAreEqual(defaultBottomPercentsOld, gradeMapping.getGradeMap())){
+                                            log.debug("SakaiGradebook:They are equals " + gradebook.getUid());
                                             gradeMapping.setDefaultValues();
+                                        }else{
+                                            log.debug("SakaiGradebook:They are NOT equals " + gradebook.getUid());
                                         }
-                                        log.debug("SakaiGradebook: updating gradeMapping" + gradeMapping.getName());
-                                        gradebookFrameworkService.updateGradeMapping(gradeMapping.getId(),gradeMapping.getGradeMap());
+                                    }else{
+                                        gradeMapping.setDefaultValues();
                                     }
+                                    log.debug("SakaiGradebook: updating gradeMapping" + gradeMapping.getName());
+                                    gradingService.updateGradeMapping(gradeMapping.getId(),gradeMapping.getGradeMap());
                                 }
+                            }
 
-                        }
                     }
-
                 }
             }
         } catch (Exception e) {
@@ -195,290 +180,7 @@ public class SakaiGradebook extends AbstractWebService {
         return "success";
     }
 
-    @WebMethod
-    @Path("/addExternalAssessment")
-    @Produces("text/plain")
-    @GET
-	public String addExternalAssessment(
-			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
-			@WebParam(name = "gradebookUid", partName = "gradebookUid") @QueryParam("gradebookUid") String gradebookUid,
-			@WebParam(name = "externalId", partName = "externalId") @QueryParam("externalId") String externalId,
-			@WebParam(name = "externalUrl", partName = "externalUrl") @QueryParam("externalUrl") String externalUrl,
-			@WebParam(name = "assignmentName", partName = "assignmentName") @QueryParam("assignmentName") String assignmentName,
-			@WebParam(name = "longVarValue", partName = "longVarValue") @QueryParam("longVarValue") String longVarValue,
-			@WebParam(name = "toolName", partName = "toolName") @QueryParam("toolName") String toolName) {
-
-		Session s = establishSession(sessionid);
-
-		try {
-			Calendar calVar = Calendar.getInstance();
-			Date currentTimeVar = calVar.getTime();
-			long longVar = Long.parseLong(longVarValue);
-
-			gradebookExternalAssessmentService.addExternalAssessment(gradebookUid, externalId, externalUrl, assignmentName, longVar, currentTimeVar, toolName, null);
-		} catch (Exception e) {
-			return e.getClass().getName() + " : " + e.getMessage();
-		}
-		return "success";
-	}
-
-    @WebMethod
-    @Path("/updateExternalAssessment")
-    @Produces("text/plain")
-    @GET
-	public String updateExternalAssessment(
-			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
-			@WebParam(name = "gradebookUid", partName = "gradebookUid") @QueryParam("gradebookUid") String gradebookUid,
-			@WebParam(name = "externalId", partName = "externalId") @QueryParam("externalId") String externalId,
-			@WebParam(name = "externalUrl", partName = "externalUrl") @QueryParam("externalUrl") String externalUrl,
-			@WebParam(name = "assignmentName", partName = "assignmentName") @QueryParam("assignmentName") String assignmentName,
-			@WebParam(name = "longVarValue", partName = "longVarValue") @QueryParam("longVarValue") String longVarValue) {
-
-		Session s = establishSession(sessionid);
-
-		try {
-			Calendar calVar = Calendar.getInstance();
-			Date currentTimeVar = calVar.getTime();
-			long longVar = Long.parseLong(longVarValue);
-
-			gradebookExternalAssessmentService.updateExternalAssessment(gradebookUid, externalId, externalUrl, null, assignmentName, longVar, currentTimeVar);
-
-		} catch (Exception e) {
-			return e.getClass().getName() + " : " + e.getMessage();
-		}
-		return "success";
-	}
-
-    @WebMethod
-    @Path("/isGradeBookDefined")
-    @Produces("text/plain")
-    @GET
-	public String isGradeBookDefined(
-			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
-			@WebParam(name = "gradebookUid", partName = "gradebookUid") @QueryParam("gradebookUid") String gradebookUid) {
-
-		Session s = establishSession(sessionid);
-
-		try {
-			if (gradebookExternalAssessmentService.isGradebookDefined(gradebookUid)) {
-				return "true";
-			} else {
-				return "false";
-			}
-
-		} catch (Exception e) {
-			return e.getClass().getName() + " : " + e.getMessage();
-		}
-	}
-
-    @WebMethod
-    @Path("/updateExternalAssessmentWithScoreList")
-    @Produces("text/plain")
-    @GET
-	public String updateExternalAssessmentWithScoreList(
-			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
-			@WebParam(name = "gradebookUid", partName = "gradebookUid") @QueryParam("gradebookUid") String gradebookUid,
-			@WebParam(name = "externalId", partName = "externalId") @QueryParam("externalId") String externalId,
-			@WebParam(name = "studentList", partName = "studentList") @QueryParam("studentList") String studentList,
-			@WebParam(name = "scoreList", partName = "scoreList") @QueryParam("scoreList") String scoreList) {
-
-		Session s = establishSession(sessionid);
-
-		String errlist = "";
-
-		try {
-			long externalIdLong = new Long(externalId).longValue();
-
-			String[] inputtedLoginNameArray = studentList.split(",");
-			String[] inputtedGradeArray = scoreList.split(",");
-			for (int x = 0; x < inputtedLoginNameArray.length; x++) {
-				String studentID = inputtedLoginNameArray[x];
-				String pointsStringVar = inputtedGradeArray[x];
-				Double points = new Double(pointsStringVar);
-				log.warn("trying to submit grade for" + studentID);
-
-				if (gradebookService.isUserAbleToGradeItemForStudent(gradebookUid, externalIdLong, studentID)) {
-					log.warn("submit grade for" + studentID + ":" + points);
-					gradebookExternalAssessmentService.updateExternalAssessmentScore(gradebookUid, externalId,
-							studentID, pointsStringVar);
-				} else
-					errlist = errlist + "," + studentID;
-			}
-
-		} catch (Exception e) {
-			return e.getClass().getName() + " : " + e.getMessage();
-		}
-
-		if (errlist.length() == 0) {
-			return "success";
-		}
-		else {
-			return "Permission defined for students " + errlist.substring(1);
-		}
-	}
-
-    // TODO: CXF and Map need to be changed
-	private String updateExternalAssessmentScores(
-			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
-			@WebParam(name = "gradebookUid", partName = "gradebookUid") @QueryParam("gradebookUid") String gradebookUid,
-			@WebParam(name = "externalId", partName = "externalId") @QueryParam("externalId") String externalId,
-			@WebParam(name = "scores", partName = "scores") @QueryParam("scores") Map scores) {
-
-		Session s = establishSession(sessionid);
-		log.warn("trying to submit grade for" + gradebookUid);
-
-		HashMap newScores = new HashMap();
-		Set scoreEids = scores.keySet();
-
-		try {
-			for (Iterator i = scoreEids.iterator(); i.hasNext();) {
-				String eid = (String) i.next();
-				String uid = userDirectoryService.getUserByEid(eid).getId();
-				if (scores.get(eid) instanceof String && "".equals((String) scores.get(eid))) {
-					newScores.put(uid, null);
-				} else {
-					newScores.put(uid, scores.get(eid));
-				}
-			}
-
-			gradebookExternalAssessmentService.updateExternalAssessmentScores(gradebookUid, externalId, newScores);
-		} catch (Exception e) {
-			log.warn("oops", e);
-			return e.getClass().getName() + " : " + e.getMessage();
-		}
-		return "success";
-	}
-
-    @WebMethod
-    @Path("/removeExternalAssessment")
-    @Produces("text/plain")
-    @GET
-	public String removeExternalAssessment(
-			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
-			@WebParam(name = "gradebookUid", partName = "gradebookUid") @QueryParam("gradebookUid") String gradebookUid,
-			@WebParam(name = "externalId", partName = "externalId") @QueryParam("externalId") String externalId) {
-
-		Session s = establishSession(sessionid);
-
-		try {
-			gradebookExternalAssessmentService.removeExternalAssessment(gradebookUid, externalId);
-		} catch (Exception e) {
-			return e.getClass().getName() + " : " + e.getMessage();
-		}
-
-		return "success";
-	}
-
-    @WebMethod
-    @Path("/getAssignments")
-    @Produces("text/plain")
-    @GET
-	public String getAssignments(
-			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
-			@WebParam(name = "gradebookUid", partName = "gradebookUid") @QueryParam("gradebookUid") String gradebookUid,
-			@WebParam(name = "delim", partName = "delim") @QueryParam("delim") String delim) {
-
-		Session s = establishSession(sessionid);
-		String retval = "";
-
-		try {
-			List Assignments = gradebookService.getAssignments(gradebookUid);
-			for (Iterator iAssignment = Assignments.iterator(); iAssignment.hasNext();) {
-				Assignment a = (Assignment) iAssignment.next();
-
-				retval = retval + delim + a.getName();
-			}
-
-		} catch (Exception e) {
-			return e.getClass().getName() + " : " + e.getMessage();
-		}
-
-		if (retval.length() == 0)
-			return retval;
-		else
-			return retval.substring(1);
-	}
-
-    @WebMethod
-    @Path("/getAssignmentScores")
-    @Produces("text/plain")
-    @GET
-	public String getAssignmentScores(
-			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
-			@WebParam(name = "gradebookUid", partName = "gradebookUid") @QueryParam("gradebookUid") String gradebookUid) {
-
-		Session s = establishSession(sessionid);
-
-		Document dom = Xml.createDocument();
-		Node all = dom.createElement("Assignments");
-		dom.appendChild(all);
-
-		try {
-			ArrayList<String> azGroups = new ArrayList<String>();
-			azGroups.add("/site/" + gradebookUid);
-
-			Set<String> students = authzGroupService.getUsersIsAllowed("section.role.student", azGroups);
-			List<User> users = userDirectoryService.getUsers(students);
-
-			Map<String, String> validStudents = new HashMap<String, String>();
-			List<String> validStudentUids = new ArrayList<String>();
-			for (User u : users) {
-				validStudents.put(u.getId(), u.getEid());
-				validStudentUids.add(u.getId());
-			}
-
-			List<Assignment> assignmentList = gradebookService.getAssignments(gradebookUid);
-			for (Assignment a : assignmentList) {
-				Element uElement = dom.createElement("Assignment");
-				uElement.setAttribute("id", a.getId().toString());
-				uElement.setAttribute("name", a.getName());
-				uElement.setAttribute("points", a.getPoints().toString());
-
-				List<GradeDefinition> defs = gradebookService.getGradesForStudentsForItem(gradebookUid, a.getId(), validStudentUids);
-				for (GradeDefinition gd : defs) {
-					Element sElement = dom.createElement("Score");
-					sElement.setAttribute("studentUid", gd.getStudentUid());
-					sElement.setAttribute("studentEid", validStudents.get(gd.getStudentUid()));
-					sElement.setAttribute("grade", gd.getGrade());
-					// sElement.setAttribute("comment", gd.getGradeComment());
-					uElement.appendChild(sElement);
-				}
-				all.appendChild(uElement);
-			}
-			return Xml.writeDocumentToString(dom);
-
-		} catch (Exception e) {
-			log.warn("getAssignmentScores failure", e);
-			return "failure: " + e.getMessage();
-		}
-	}
-
-    @WebMethod
-    @Path("/isUserAbleToGradeStudent")
-    @Produces("text/plain")
-    @GET
-	public String isUserAbleToGradeStudent(
-			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
-			@WebParam(name = "gradebookUid", partName = "gradebookUid") @QueryParam("gradebookUid") String gradebookUid,
-			@WebParam(name = "studentUid", partName = "studentUid") @QueryParam("studentUid") String studentUid) {
-
-		Session s = establishSession(sessionid);
-		boolean retval;
-
-		try {
-			retval = gradebookService.isUserAbleToGradeItemForStudent(gradebookUid, null, studentUid);
-		} catch (Exception e) {
-			return e.getClass().getName() + " : " + e.getMessage();
-		}
-
-		if (retval) {
-			return "true";
-		} else {
-			return "false";
-		}
-	}
-
-    private boolean mapsAreEqual(Map<String, Double> mapA, Map<String, Double> mapB) {
+    public boolean mapsAreEqual(Map<String, Double> mapA, Map<String, Double> mapB) {
 
         try{
             for (String k : mapB.keySet())
