@@ -12,11 +12,11 @@
     <parent>
         <groupId>org.sakaiproject.webservices</groupId>
         <artifactId>webservices</artifactId>
-        <version>21-SNAPSHOT</version>
+        <version>22-SNAPSHOT</version>
     </parent>
 
     <properties>
-        <cxf.version>3.3.11</cxf.version>
+        <cxf.version>3.5.2</cxf.version>
     </properties>
 
     <dependencies>

@@ -31,8 +31,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.PropertyConfigurator;
 import org.sakaiproject.component.api.ServerConfigurationService;
 import org.sakaiproject.component.api.ServerConfigurationService.ConfigItem;
 import org.sakaiproject.component.cover.ComponentManager;
@@ -55,40 +53,6 @@ import lombok.extern.slf4j.Slf4j;
 @SOAPBinding(style = SOAPBinding.Style.RPC, use = SOAPBinding.Use.LITERAL)
 @Slf4j
 public class SakaiConfiguration extends AbstractWebService {
-
-    @WebMethod
-    @Path("/adjustLogLevel")
-    @Produces("text/plain")
-    @GET
-    public String adjustLogLevel(
-            @WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
-            @WebParam(name = "packageName", partName = "packageName") @QueryParam("packageName") String packageName,
-            @WebParam(name = "level", partName = "level") @QueryParam("level") String level) {
-        Session session = establishSession(sessionid);
-        if (!securityService.isSuperUser()) {
-            log.warn("NonSuperUser trying to collect configuration: " + session.getUserId());
-            throw new RuntimeException("NonSuperUser trying to collect configuration: " + session.getUserId());
-        }
-        Properties props = new Properties();
-        try {
-
-            // ok, yes I know this is fragile and totally tomcat specific, but it works and avoids having to
-            // configure up a new version of the log4j file somehow.   For sure this will break in tomcat 6, as
-            // I think classloading is much different there.
-            // This finds the log4j file in kernel common:
-            // common/lib/sakai-kernel-common-x.x.x.jar!/log4j.properties
-            InputStream configStream = this.getClass().getClassLoader().getParent().getParent().getResourceAsStream("log4j.properties");
-            props.load(configStream);
-            configStream.close();
-            props.setProperty("log4j.logger." + packageName, level);
-            LogManager.resetConfiguration();
-            PropertyConfigurator.configure(props);
-        } catch (Exception e) {
-            log.error(e.getMessage(), e);
-        }
-
-        return "success";
-    }
 
     @WebMethod
     @Path("/getProperty")

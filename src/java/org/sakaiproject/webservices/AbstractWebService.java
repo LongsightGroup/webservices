@@ -48,6 +48,7 @@ import org.sakaiproject.tool.api.SessionManager;
 import org.sakaiproject.tool.api.ToolManager;
 import org.sakaiproject.user.api.AuthenticationManager;
 import org.sakaiproject.user.api.UserDirectoryService;
+import org.sakaiproject.util.api.FormattedText;
 import org.sakaiproject.user.api.PreferencesService;
 import org.sakaiproject.shortenedurl.api.ShortenedUrlService;
 import org.sakaiproject.tool.assessment.samlite.api.SamLiteService;
@@ -104,8 +105,9 @@ public class AbstractWebService {
     protected QuestionPoolServiceAPI questionPoolServiceImpl;
     protected LessonBuilderAccessAPI lessonBuilderAccessAPI;
     protected ArchiveService archiveService;
-    protected MemoryService memoryService;
+    protected FormattedText formattedText;
     protected SqlService sqlService;
+    protected MemoryService memoryService;
     protected ImportService importService;
     protected SyllabusManager syllabusManager;
     protected ProfileLogic profileLogic;
@@ -303,6 +305,10 @@ public class AbstractWebService {
     @WebMethod(exclude = true)
     public void setLessonBuilderAccessAPI(LessonBuilderAccessAPI lessonBuilderAccessAPI) {
         this.lessonBuilderAccessAPI = lessonBuilderAccessAPI;
+    }
+    @WebMethod(exclude = true)
+    public void setFormattedText(FormattedText formattedText) {
+        this.formattedText = formattedText;
     }
 
     @WebMethod(exclude = true)
