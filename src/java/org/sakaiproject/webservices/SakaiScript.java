@@ -715,9 +715,9 @@ public class SakaiScript extends AbstractWebService {
             Node list = dom.createElement("list");
             dom.appendChild(list);
 
-
-            for (Iterator iter = site.getGroups().iterator(); iter.hasNext(); ) {
-                Group group = (Group) iter.next();
+            for (Group group : site.getGroups()) {
+                final String groupTitleString = StringUtils.trimToEmpty(group.getTitle());
+                final String groupDescriptionString = StringUtils.trimToEmpty(group.getDescription());
 
                 Node groupNode = dom.createElement("group");
 
@@ -725,10 +725,10 @@ public class SakaiScript extends AbstractWebService {
                 groupId.appendChild(dom.createTextNode(group.getId()));
 
                 Node groupTitle = dom.createElement("title");
-                groupTitle.appendChild(dom.createTextNode(group.getTitle()));
+                groupTitle.appendChild(dom.createTextNode(groupTitleString));
 
                 Node groupDesc = dom.createElement("description");
-                groupDesc.appendChild(dom.createTextNode(group.getDescription()));
+                groupDesc.appendChild(dom.createTextNode(groupDescriptionString));
 
                 groupNode.appendChild(groupId);
                 groupNode.appendChild(groupTitle);
