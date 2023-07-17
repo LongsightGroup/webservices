@@ -1,21 +1,9 @@
 package org.sakaiproject.webservices;
 
+import org.sakaiproject.grading.api.Assignment;
 import org.sakaiproject.grading.api.GradeDefinition;
 import org.sakaiproject.tool.api.Session;
-import org.sakaiproject.tool.api.SessionManager;
 import org.sakaiproject.user.api.User;
-import org.sakaiproject.user.api.UserDirectoryService;
-import org.sakaiproject.authz.api.SecurityService;
-import org.sakaiproject.site.api.SiteService;
-import org.sakaiproject.grading.api.Assignment;
-import org.sakaiproject.grading.api.GradingScaleDefinition;
-import org.sakaiproject.grading.api.GradingService;
-import org.sakaiproject.grading.api.model.GradingScale;
-import org.sakaiproject.grading.api.model.GradeMapping;
-import org.sakaiproject.grading.api.model.Gradebook;
-
-import java.util.Date;
-import java.util.Iterator;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
@@ -25,6 +13,8 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import java.util.Date;
+import java.util.Iterator;
 
 @WebService
 @SOAPBinding(style = SOAPBinding.Style.RPC, use = SOAPBinding.Use.LITERAL)
