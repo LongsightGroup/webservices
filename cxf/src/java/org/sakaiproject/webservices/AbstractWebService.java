@@ -315,11 +315,6 @@ public class AbstractWebService {
     }
 
     @WebMethod(exclude = true)
-    public void setArchiveService(ArchiveService archiveService) {
-        this.archiveService = archiveService;
-    }
-    
-    @WebMethod(exclude = true)
     public void setMemoryService(MemoryService memoryService) {
         this.memoryService = memoryService;
     }
@@ -330,6 +325,11 @@ public class AbstractWebService {
     }
     
     @WebMethod(exclude = true)
+    public void setArchiveService(ArchiveService archiveService) {
+        this.archiveService = archiveService;
+    }
+    
+    @WebMethod(exclude = true)
     public void setImportService(ImportService importService) {
         this.importService = importService;
     }
@@ -337,6 +337,11 @@ public class AbstractWebService {
     @WebMethod(exclude = true)
     public void setUserAuditRegistration(UserAuditRegistration userAuditRegistration) {
         this.userAuditRegistration = userAuditRegistration;
+    }
+
+    @WebMethod(exclude = true)
+    public void setSiteManageService(SiteManageService siteManageService) {
+        this.siteManageService = siteManageService;
     }
 
     @WebMethod(exclude = true)
