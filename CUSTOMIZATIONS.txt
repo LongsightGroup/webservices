@@ -1,0 +1,6 @@
+LS-176: copy all Axis methods to CXF
+LS-177: make sure no method overrides in SakaiScript
+SAK-27503: backport from trunk to not deploy aopalliance and asm JARs
+EST-3: remove from jldap_immutable table
+SAK-29243 added a new method signature to getImportCourseGrade
+  * SAK-29102: remove getCalculatedCourseGrade because it was not calculating difficult weighted grades in categories correctly

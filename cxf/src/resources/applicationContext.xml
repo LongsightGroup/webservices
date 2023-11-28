@@ -259,7 +259,6 @@
         <property name="memoryService" ref="org.sakaiproject.memory.api.MemoryService"/>
         <property name="sqlService" ref="org.sakaiproject.db.api.SqlService"/>
         <property name="importService" ref="org.sakaiproject.importer.api.ImportService"/>
-        <property name="syllabusManager" ref="org.sakaiproject.api.app.syllabus.SyllabusManager"/>
         <property name="profileLogic" ref="org.sakaiproject.profile2.logic.ProfileLogic"/>
         <property name="sakaiProxy" ref="org.sakaiproject.profile2.logic.SakaiProxy"/>
     </bean>

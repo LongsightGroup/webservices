@@ -32,6 +32,7 @@ import org.sakaiproject.event.api.NotificationService;
 import org.sakaiproject.event.api.UsageSession;
 import org.sakaiproject.exception.IdUnusedException;
 import org.sakaiproject.grading.api.Assignment;
+import org.sakaiproject.grading.api.CategoryDefinition;
 import org.sakaiproject.grading.api.CourseGradeTransferBean;
 import org.sakaiproject.grading.api.GradeDefinition;
 import org.sakaiproject.grading.api.model.Gradebook;
@@ -2741,6 +2742,7 @@ public class WSLongsight extends AbstractWebService {
 
                 return gradeResult;
         }
+
 
 	@WebMethod
 	@Path("/longsightImportFromFile")
