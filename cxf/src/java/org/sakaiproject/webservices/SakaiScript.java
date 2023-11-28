@@ -2340,7 +2340,7 @@ public class SakaiScript extends AbstractWebService {
             //get the property that we wanted, as a string. this wont return multi valued ones
             //would need to use getPropertyList() for that, but then need to return XML since its a list.
             String propvalue = props.getProperty(propname);
-            return propvalue;
+            return (propvalue != null) ? propvalue : "";
 
         } catch (Exception e) {
             log.error("WS getSiteProperty(): " + e.getClass().getName() + " : " + e.getMessage());
