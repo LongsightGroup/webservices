@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Vector;
 
@@ -71,6 +72,8 @@ import org.sakaiproject.memory.api.Cache;
 import org.sakaiproject.profile2.logic.ProfileLogic;
 import org.sakaiproject.profile2.logic.SakaiProxy;
 import org.sakaiproject.service.gradebook.shared.Assignment;
+import org.sakaiproject.service.gradebook.shared.CategoryDefinition;
+import org.sakaiproject.service.gradebook.shared.CategoryScoreData;
 import org.sakaiproject.service.gradebook.shared.CourseGrade;
 import org.sakaiproject.service.gradebook.shared.GradeDefinition;
 import org.sakaiproject.site.api.Group;
@@ -2752,6 +2755,81 @@ public class WSLongsight extends AbstractWebService {
 
                 return gradeResult;
         }
+
+	@WebMethod
+	@Path("/getCategoryScores")
+	@Produces("text/plain")
+	@GET
+	public String getCategoryScores(
+			@WebParam(name = "sessionId", partName = "sessionId") @QueryParam("sessionId") String sessionId,
+			@WebParam(name = "siteId", partName = "siteId") @QueryParam("siteId") String siteId)
+	{
+		Session session = establishSession(sessionId);
+
+		if (!securityService.isSuperUser()) {
+			LOG.warn("WS getCourseGrades(): Permission denied. Restricted to super users.");
+			return "FAILURE: getCourseGrades(): Permission denied. Restricted to super users.";
+		}
+
+		String gradeResult = "";
+		try {
+
+			Gradebook gb = (Gradebook) gradebookService.getGradebook(siteId);
+			List<CategoryDefinition> categories = gradebookService.getCategoryDefinitions(gb.getUid());
+			Map<String, String> students = getGradeableStudentMap(siteId);
+			List<String> userUuids = new ArrayList<>(students.keySet());
+
+			Document dom = Xml.createDocument();
+
+			// Create the "course" element
+			Element course = dom.createElement("course");
+
+			// Set "id" as an attribute of the "course" element, with the value of siteId
+			course.setAttribute("id", siteId);
+
+			// Append the "course" element to the document
+			dom.appendChild(course);
+
+			// Loop through each student
+			students.forEach((uuid, eid) -> {
+				// Create the "student" element
+				Element student = dom.createElement("student");
+
+				// Set "id" as an attribute of the "student" element, with the value of eid
+				student.setAttribute("id", uuid);
+				student.setAttribute("eid", eid);
+
+				// Append the "student" element to the "course" element
+				course.appendChild(student);
+
+				// Loop through all categories
+				for (final CategoryDefinition category : categories) {
+					Element cat = dom.createElement("category");
+
+					// Set the category ID and title as attributes
+					cat.setAttribute("id", String.valueOf(category.getId()));
+					cat.setAttribute("title", category.getName());
+
+					final Optional<CategoryScoreData> categoryScore = gradebookService.calculateCategoryScore(gb.getId(), uuid, category.getId(), false, gb.getCategory_type(), null);
+					// Check if category score is present and then set it as the text content of the category element
+					if (categoryScore.isPresent()) {
+						double roundedValue = Double.parseDouble(String.format("%.2f", categoryScore.get().score));
+						cat.setTextContent(String.valueOf(roundedValue));
+					}
+
+					// Append the category element to the student node
+					student.appendChild(cat);
+				}
+			});
+
+			gradeResult = Xml.writeDocumentToString(dom);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return e.getClass().getName() + " : " + e.getMessage();
+		}
+
+		return gradeResult;
+	}
 
 	@WebMethod
 	@Path("/longsightImportFromFile")
