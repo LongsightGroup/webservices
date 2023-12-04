@@ -4241,5 +4241,36 @@ public class WSLongsight extends AbstractWebService {
 		}
   }
 
+  @WebMethod
+	@Path("/longsightSetPronoun")
+	@Produces("text/plain")
+	@GET
+	public void longsightSetPronoun(
+			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid, 
+			@WebParam(name = "eid", partName = "eid") @QueryParam("eid") String eid, 
+			@WebParam(name = "pronoun", partName = "pronoun") @QueryParam("pronoun") String pronoun)
+	{
+		Session session = establishSession(sessionid);
+		if (!securityService.isSuperUser())
+		{
+			LOG.warn("NonSuperUser trying to set pronoun: " + session.getUserId());
+			return;
+		}
+
+		try {
+			String uuid = userDirectoryService.getUserByEid(eid).getId();
+			SakaiPerson sakaiPerson = sakaiProxy.getSakaiPerson(uuid);
+			if (sakaiPerson == null) {
+				sakaiPerson = sakaiProxy.createSakaiPerson(uuid);
+			}
+			if (StringUtils.isNotBlank(pronoun)) {
+				sakaiPerson.setPronouns(pronoun);
+			}
+			profileLogic.saveUserProfile(sakaiPerson);
+		} catch (Exception e) {
+			LOG.warn("Error trying to set pronoun", e);
+		}
+  }
+
 }
 
