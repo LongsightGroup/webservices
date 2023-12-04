@@ -1,38 +1,5 @@
 package org.sakaiproject.webservices;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.Vector;
-
-import javax.jws.WebMethod;
-import javax.jws.WebParam;
-import javax.jws.WebService;
-import javax.jws.soap.SOAPBinding;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
@@ -66,19 +33,13 @@ import org.sakaiproject.event.api.UsageSession;
 import org.sakaiproject.exception.IdUnusedException;
 import org.sakaiproject.grading.api.Assignment;
 import org.sakaiproject.grading.api.CategoryDefinition;
+import org.sakaiproject.grading.api.CategoryScoreData;
 import org.sakaiproject.grading.api.CourseGradeTransferBean;
 import org.sakaiproject.grading.api.GradeDefinition;
 import org.sakaiproject.grading.api.model.Gradebook;
 import org.sakaiproject.importer.api.ImportDataSource;
 import org.sakaiproject.importer.api.ResetOnCloseInputStream;
 import org.sakaiproject.memory.api.Cache;
-import org.sakaiproject.profile2.logic.ProfileLogic;
-import org.sakaiproject.profile2.logic.SakaiProxy;
-import org.sakaiproject.service.gradebook.shared.Assignment;
-import org.sakaiproject.service.gradebook.shared.CategoryDefinition;
-import org.sakaiproject.service.gradebook.shared.CategoryScoreData;
-import org.sakaiproject.service.gradebook.shared.CourseGrade;
-import org.sakaiproject.service.gradebook.shared.GradeDefinition;
 import org.sakaiproject.site.api.Group;
 import org.sakaiproject.site.api.Site;
 import org.sakaiproject.site.api.SitePage;
@@ -101,6 +62,7 @@ import org.sakaiproject.user.api.UserNotDefinedException;
 import org.sakaiproject.util.ArrayUtil;
 import org.sakaiproject.util.Xml;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import javax.jws.WebMethod;
@@ -129,6 +91,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Vector;
 
@@ -144,10 +107,8 @@ public class WSLongsight extends AbstractWebService {
 
 	private static final Log LOG = LogFactory.getLog(WSLongsight.class);
 	private static final String EVENT_REMOVE_CALENDAR = "calendar.delete";
-	private static final String ADMIN_SITE_REALM = "/site/!admin";
 	private static final String SESSION_ATTR_NAME_ORIGIN = "origin";
 	private static final String SESSION_ATTR_VALUE_ORIGIN_WS = "sakai-axis";
-	private static final String CACHE_MANAGER = "org.sakaiproject.memory.api.MemoryService.cacheManager";
 	private static final String ID_EID_CACHE = "org.sakaiproject.user.api.UserDirectoryService";
 
 	/* 
@@ -2798,12 +2759,15 @@ public class WSLongsight extends AbstractWebService {
 			LOG.warn("WS getCourseGrades(): Permission denied. Restricted to super users.");
 			return "FAILURE: getCourseGrades(): Permission denied. Restricted to super users.";
 		}
+		else if (gradingService == null) {
+			return "Cannot get Gradebook service!";
+		}
 
 		String gradeResult = "";
 		try {
 
-			Gradebook gb = (Gradebook) gradebookService.getGradebook(siteId);
-			List<CategoryDefinition> categories = gradebookService.getCategoryDefinitions(gb.getUid());
+			Gradebook gb = gradingService.getGradebook(siteId);
+			List<CategoryDefinition> categories = gradingService.getCategoryDefinitions(gb.getUid());
 			Map<String, String> students = getGradeableStudentMap(siteId);
 			List<String> userUuids = new ArrayList<>(students.keySet());
 
@@ -2838,7 +2802,7 @@ public class WSLongsight extends AbstractWebService {
 					cat.setAttribute("id", String.valueOf(category.getId()));
 					cat.setAttribute("title", category.getName());
 
-					final Optional<CategoryScoreData> categoryScore = gradebookService.calculateCategoryScore(gb.getId(), uuid, category.getId(), false, gb.getCategory_type(), null);
+					final Optional<CategoryScoreData> categoryScore = gradingService.calculateCategoryScore(gb.getId(), uuid, category.getId(), false, gb.getCategoryType(), null);
 					// Check if category score is present and then set it as the text content of the category element
 					if (categoryScore.isPresent()) {
 						double roundedValue = Double.parseDouble(String.format("%.2f", categoryScore.get().score));
@@ -4107,7 +4071,7 @@ public class WSLongsight extends AbstractWebService {
 			List<Assignment> itemList = gradingService.getAssignments(siteId);
 			if (itemList == null) return "No gradebook items for site";
 
-            Gradebook gb = (Gradebook) gradingService.getGradebook(siteId);
+            Gradebook gb = gradingService.getGradebook(siteId);
             Map<String, String> students = getGradeableStudentMap(siteId);
             List<String> userUuids = new ArrayList<>(students.keySet());
 
