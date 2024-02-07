@@ -893,6 +893,57 @@ public class WSLongsight extends AbstractWebService {
 	}
 
 	@WebMethod
+	@Path("/getSitesForUserForTerm")
+	@Produces("text/xml")
+	@GET
+	public String getSitesForUserForTerm(
+			@WebParam(name = "sessionId", partName = "sessionId") @QueryParam("sessionId") String sessionId,
+			@WebParam(name = "eid", partName = "eid") @QueryParam("eid") String eid,
+			@WebParam(name = "term", partName = "term") @QueryParam("term") String term)
+	{
+
+		establishSession(sessionId);
+		if (!securityService.isSuperUser()) {
+			LOG.warn("WS getSitesForProvider(): Permission denied. Restricted to super users.");
+			return "FAILURE: getSitesForProvider(): Permission denied. Restricted to super users.";
+		}
+
+		Document dom = Xml.createDocument();
+		Node siteList = dom.createElement("sites");
+		dom.appendChild(siteList);
+
+		try {
+			SelectionType selectionType = SelectionType.ACCESS;
+			// selectionType = SelectionType.MEMBER;
+			Map<String,String> termProp = new HashMap<>();
+			termProp.put(Site.PROP_SITE_TERM, term);
+			List<Site> sites = siteService.getSites(selectionType, null, null, termProp, SortType.TITLE_ASC, null);
+
+			for (Site s : sites) {
+				String siteId = s.getId();
+				String siteTitle = s.getTitle();
+
+				// Create a new site element
+				Element siteElement = dom.createElement("site");
+
+				// Set id as an attribute of site element
+				siteElement.setAttribute("id", siteId);
+
+				// Set title as an attribute of site element
+				siteElement.setAttribute("title", siteTitle);
+
+				// Append the site element to the parent element (assuming 'course' is your parent element)
+				siteList.appendChild(siteElement);
+			}
+
+			return Xml.writeDocumentToString(dom);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return "error: " + e.getMessage();
+		}
+	}
+
+	@WebMethod
 	@Path("/longsightIsMember")
 	@Produces("text/plain")
 	@GET
