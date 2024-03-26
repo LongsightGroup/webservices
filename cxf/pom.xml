@@ -106,6 +106,14 @@
 	      	<artifactId>shortenedurl-api</artifactId>
 	    </dependency>
         <dependency>
+            <groupId>org.sakaiproject.announcement</groupId>
+            <artifactId>sakai-announcement-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.sakaiproject.message</groupId>
+            <artifactId>sakai-message-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.sakaiproject.assignment</groupId>
             <artifactId>sakai-assignment-api</artifactId>
         </dependency>
