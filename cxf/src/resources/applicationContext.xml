@@ -218,9 +218,9 @@
         <jaxws:properties> <entry key="exceptionMessageCauseEnabled" value="true" /> <entry key="faultStackTraceEnabled" value="true" /> </jaxws:properties>
     </jaxws:endpoint>
 
-    <jaxws:endpoint id="Brock"
-                    implementor="#org.sakaiproject.webservices.Brock"
-                    address="/soap/brock">
+    <jaxws:endpoint id="Pathify"
+                    implementor="#org.sakaiproject.webservices.Pathify"
+                    address="/soap/Pathify">
         <jaxws:properties> <entry key="exceptionMessageCauseEnabled" value="true" /> <entry key="faultStackTraceEnabled" value="true" /> </jaxws:properties>
     </jaxws:endpoint>
 
@@ -228,6 +228,7 @@
         <property name="serverConfigurationService" ref="org.sakaiproject.component.api.ServerConfigurationService"/>
         <property name="sessionManager" ref="org.sakaiproject.tool.api.SessionManager"/>
         <property name="usageSessionService" ref="org.sakaiproject.event.api.UsageSessionService"/>
+        <property name="announcementService" ref="org.sakaiproject.announcement.api.AnnouncementService" />
         <property name="authenticationManager" ref="org.sakaiproject.user.api.AuthenticationManager"/>
         <property name="userDirectoryService" ref="org.sakaiproject.user.api.UserDirectoryService"/>
         <property name="authzGroupService" ref="org.sakaiproject.authz.api.AuthzGroupService"/>
@@ -288,7 +289,7 @@
     <bean id="org.sakaiproject.webservices.SakaiGradebook" class="org.sakaiproject.webservices.SakaiGradebook" parent="org.sakaiproject.webservices.AbstractWebService" >
         <property name="gradebookFrameworkService" ref="org.sakaiproject.service.gradebook.GradebookFrameworkService"/>
     </bean>
-    <bean id="org.sakaiproject.webservices.Brock" class="org.sakaiproject.webservices.Brock" parent="org.sakaiproject.webservices.AbstractWebService" />
+    <bean id="org.sakaiproject.webservices.Pathify" class="org.sakaiproject.webservices.Pathify" parent="org.sakaiproject.webservices.AbstractWebService" />
     <bean id="org.sakaiproject.webservices.WSLongsight" class="org.sakaiproject.webservices.WSLongsight" parent="org.sakaiproject.webservices.AbstractWebService" />
     <bean id="org.sakaiproject.webservices.MHAssignment" class="org.sakaiproject.webservices.MHAssignment" parent="org.sakaiproject.webservices.AbstractWebService">
         <property name="gradebookExternalAssessmentService" ref="org.sakaiproject.service.gradebook.GradebookExternalAssessmentService"/>

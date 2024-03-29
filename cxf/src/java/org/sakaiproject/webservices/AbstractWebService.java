@@ -18,6 +18,7 @@ package org.sakaiproject.webservices;
 import org.apache.cxf.message.Message;
 import org.apache.cxf.phase.PhaseInterceptorChain;
 import org.apache.cxf.transport.http.AbstractHTTPDestination;
+import org.sakaiproject.announcement.api.AnnouncementService;
 import org.sakaiproject.api.app.messageforums.ui.DiscussionForumManager;
 import org.sakaiproject.api.app.messageforums.MessageForumsForumManager;
 import org.sakaiproject.api.app.messageforums.MessageForumsMessageManager;
@@ -71,6 +72,7 @@ import javax.servlet.http.HttpServletRequest;
 public class AbstractWebService {
     protected SessionManager sessionManager;
 
+    protected AnnouncementService announcementService;
     protected AssignmentService assignmentService;
     protected AuthenticationManager authenticationManager;
     protected AuthzGroupService authzGroupService;
@@ -153,6 +155,11 @@ public class AbstractWebService {
     @WebMethod(exclude = true)
     public void setAssignmentService(AssignmentService assignmentService) {
         this.assignmentService = assignmentService;
+    }
+
+    @WebMethod(exclude = true)
+    public void setAnnouncementService(AnnouncementService announcementService) {
+        this.announcementService = announcementService;
     }
     
     @WebMethod(exclude = true)
