@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.sakaiproject.announcement.api.AnnouncementMessage;
 import org.sakaiproject.announcement.api.ViewableFilter;
 import org.sakaiproject.assignment.api.model.Assignment;
+import org.sakaiproject.assignment.api.model.AssignmentSubmission;
 import org.sakaiproject.exception.IdUnusedException;
 import org.sakaiproject.exception.PermissionException;
 import org.sakaiproject.message.api.Message;
@@ -11,6 +12,7 @@ import org.sakaiproject.site.api.Site;
 import org.sakaiproject.site.api.SiteService.SelectionType;
 import org.sakaiproject.site.api.SiteService.SortType;
 import org.sakaiproject.tool.api.Session;
+import org.sakaiproject.tool.assessment.data.dao.grading.AssessmentGradingData;
 import org.sakaiproject.tool.assessment.facade.PublishedAssessmentFacade;
 import org.sakaiproject.tool.assessment.facade.PublishedAssessmentFacadeQueries;
 import org.sakaiproject.tool.assessment.services.assessment.PublishedAssessmentService;
@@ -98,7 +100,7 @@ public class Pathify extends AbstractWebService {
 
 			return Xml.writeDocumentToString(dom);
 		} catch (Exception e) {
-			e.printStackTrace();
+			log.error("Exception in getSitesForUserForTerm: ", e);
 			return "error: " + e.getMessage();
 		}
 	}
@@ -144,15 +146,12 @@ public class Pathify extends AbstractWebService {
 				if (closeTime != null) {
 					uElement.setAttribute("closeTime", isoFormat.format(Date.from(closeTime)));
 				}
-				if (dueTime != null) {
-					uElement.setAttribute("dueTime", isoFormat.format(Date.from(dueTime)));
-				}
-				
-				all.appendChild(uElement);
+                uElement.setAttribute("dueTime", isoFormat.format(Date.from(dueTime)));
+
+                all.appendChild(uElement);
 			}
 
-    		String retVal = Xml.writeDocumentToString(dom);
-    		return retVal;
+            return Xml.writeDocumentToString(dom);
     	}
     	catch (Exception e) {
     		log.error("WS getAssignmentsForContext(): " + e.getClass().getName() + " : " + e.getMessage());
@@ -193,15 +192,13 @@ public class Pathify extends AbstractWebService {
 				Element uElement = dom.createElement("assessment");
 				uElement.setAttribute("id", a.getPublishedAssessmentId().toString());
 				uElement.setAttribute("title", a.getTitle());
-				if (dueTime != null) {
-					uElement.setAttribute("dueTime", isoFormat.format(Date.from(dueTime)));
-				}
-				all.appendChild(uElement);
+                uElement.setAttribute("dueTime", isoFormat.format(Date.from(dueTime)));
+                all.appendChild(uElement);
 			}
 			
 		}
 		catch (Exception e) {
-			e.printStackTrace();
+			log.error("WS getAssessmentsDueSoon(): " + e.getMessage(), e);
 		}
 		finally {
 			if (currentUserId != null) {
@@ -209,8 +206,7 @@ public class Pathify extends AbstractWebService {
 			}
 		}
 
-		String retVal = Xml.writeDocumentToString(dom);
-    	return retVal;
+        return Xml.writeDocumentToString(dom);
 	}
 
 
@@ -222,7 +218,37 @@ public class Pathify extends AbstractWebService {
             @WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
             @WebParam(name = "siteId", partName = "siteId") @QueryParam("siteId") String siteId,
 			@WebParam(name = "eid", partName = "eid") @QueryParam("eid") String eid) {
-				return null;
+		establishPathifySession(sessionid);
+
+		Document dom = Xml.createDocument();
+		Node all = dom.createElement("assignments");
+		dom.appendChild(all);
+
+		try {
+			User student = userDirectoryService.getUserByEid(eid);
+
+			for (Assignment a : assignmentService.getAssignmentsForContext(siteId)) {
+				if (a.getDraft()) continue;
+
+				AssignmentSubmission s = assignmentService.getSubmission(a.getId(), student);
+				if (!s.getGraded() || !s.getReturned()) continue;
+
+				Instant gradedDate = s.getDateReturned();
+				Instant nowMinusDays = Instant.now().minus(Duration.ofDays(PATHIFY_DAYS_AFTER));
+				if (gradedDate.isBefore(nowMinusDays)) continue;
+
+				Element uElement = dom.createElement("assignment");
+				uElement.setAttribute("id", a.getId());
+				uElement.setAttribute("title", a.getTitle());
+				uElement.setAttribute("grade", s.getGrade());
+				uElement.setAttribute("gradedDate", isoFormat.format(Date.from(gradedDate)));
+			}
+		}
+		catch (Exception e) {
+			log.error("WS getAssignmentsGradedRecently(): " + e.getClass().getName() + " : " + e.getMessage());
+		}
+
+        return Xml.writeDocumentToString(dom);
 	}
 
 	@WebMethod
@@ -233,7 +259,47 @@ public class Pathify extends AbstractWebService {
             @WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
             @WebParam(name = "siteId", partName = "siteId") @QueryParam("siteId") String siteId,
 			@WebParam(name = "eid", partName = "eid") @QueryParam("eid") String eid) {
-				return null;
+		establishPathifySession(sessionid);
+
+		PublishedAssessmentService publishedAssessmentService = new PublishedAssessmentService();
+
+		Document dom = Xml.createDocument();
+		Node all = dom.createElement("assessments");
+		dom.appendChild(all);
+
+		String currentUserId = pathifyFlipSession(eid);
+		try {
+			List<AssessmentGradingData> assessments = publishedAssessmentService.getBasicInfoOfLastOrHighestOrAverageSubmittedAssessmentsByScoringOption(eid, siteId, false);
+			log.debug("Got this many AssessmentGradingData: {}", assessments.size());
+
+			for (AssessmentGradingData a : assessments) {
+				Instant gradedDate = a.getGradedDate().toInstant();
+				Instant submittedDate = a.getSubmittedDate().toInstant();
+				Instant nowMinusDays = Instant.now().minus(Duration.ofDays(PATHIFY_DAYS_AFTER));
+				if (gradedDate == null || gradedDate.isBefore(nowMinusDays)) continue;
+
+				Element uElement = dom.createElement("assessment");
+				uElement.setAttribute("id", a.getPublishedAssessmentId().toString());
+				uElement.setAttribute("title", a.getPublishedAssessmentTitle());
+				uElement.setAttribute("grade", a.getFinalScore().toString());
+                uElement.setAttribute("gradedDate", isoFormat.format(Date.from(gradedDate)));
+                if (submittedDate != null) {
+					uElement.setAttribute("submittedDate", isoFormat.format(Date.from(submittedDate)));
+				}
+				all.appendChild(uElement);
+			}
+
+		}
+		catch (Exception e) {
+			log.error("WS getAssessmentsGradedRecently(): " + e.getMessage(), e);
+		}
+		finally {
+			if (currentUserId != null) {
+				pathifyFlipSession(currentUserId);
+			}
+		}
+
+        return Xml.writeDocumentToString(dom);
 	}
 
 
@@ -263,7 +329,7 @@ public class Pathify extends AbstractWebService {
 				uElement.setAttribute("id", msg.getId());
 				uElement.setAttribute("title", msg.getAnnouncementHeader().getSubject());
 				uElement.setAttribute("url", msg.getUrl());
-				uElement.setAttribute("pubDate", isoFormat.format(msg.getHeader().getDate()));
+				uElement.setAttribute("pubDate", isoFormat.format(msg.getHeader().getInstant()));
 				// Create a new text node for the body
 				Node bodyNode = dom.createTextNode(msg.getBody());
 				uElement.appendChild(bodyNode);
@@ -273,8 +339,7 @@ public class Pathify extends AbstractWebService {
 			log.warn("Could not get messages for site {}", siteId, e);
 		}
 
-		String retVal = Xml.writeDocumentToString(dom);
-		return retVal;
+        return Xml.writeDocumentToString(dom);
 	}
 
 
