@@ -44,7 +44,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 import com.opencsv.CSVWriter;
-import com.sun.org.apache.xml.internal.utils.XMLChar;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.json.JSONArray;
@@ -292,12 +291,15 @@ public class SakaiReport extends AbstractWebService {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
-            if (XMLChar.isValid(c)) {
+            if ((c == 0x9) || (c == 0xA) || (c == 0xD) ||
+                (c >= 0x20 && c <= 0xD7FF) ||
+                (c >= 0xE000 && c <= 0xFFFD) ||
+                (c >= 0x10000 && c <= 0x10FFFF)) {
                 sb.append(c);
             } else {
                 log.debug(c + " is not a valid XML char, stripping it: ");
             }
-        }
+    }
 
         return sb.toString();
     }
