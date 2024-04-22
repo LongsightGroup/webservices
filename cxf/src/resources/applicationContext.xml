@@ -220,7 +220,7 @@
 
     <jaxws:endpoint id="Pathify"
                     implementor="#org.sakaiproject.webservices.Pathify"
-                    address="/soap/Pathify">
+                    address="/soap/pathify">
         <jaxws:properties> <entry key="exceptionMessageCauseEnabled" value="true" /> <entry key="faultStackTraceEnabled" value="true" /> </jaxws:properties>
     </jaxws:endpoint>
 

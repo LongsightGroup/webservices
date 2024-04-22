@@ -61,8 +61,8 @@ public class Pathify extends AbstractWebService {
 	@GET
 	public String getSitesForUserForTerm(
 			@WebParam(name = "sessionId", partName = "sessionId") @QueryParam("sessionId") String sessionId,
-			@WebParam(name = "eid", partName = "eid") @QueryParam("eid") String eid,
-			@WebParam(name = "term", partName = "term") @QueryParam("term") String term)
+			@WebParam(name = "term", partName = "term") @QueryParam("term") String term,
+			@WebParam(name = "eid", partName = "eid") @QueryParam("eid") String eid)
 	{
 
 		establishPathifySession(sessionId);
@@ -71,11 +71,12 @@ public class Pathify extends AbstractWebService {
 		Node siteList = dom.createElement("sites");
 		dom.appendChild(siteList);
 
+		String currentUserId = pathifyFlipSession(eid);
 		try {
 			SelectionType selectionType = SelectionType.ACCESS;
 			// selectionType = SelectionType.MEMBER;
-			Map<String,String> termProp = new HashMap<>();
-			termProp.put(Site.PROP_SITE_TERM, term);
+			Map<String, String> termProp = new HashMap<>();
+			termProp.put("term_eid", term);
 			List<Site> sites = siteService.getSites(selectionType, null, null, termProp, SortType.TITLE_ASC, null);
 
 			for (Site s : sites) {
@@ -97,12 +98,17 @@ public class Pathify extends AbstractWebService {
 				// Append the site element to the parent element (assuming 'course' is your parent element)
 				siteList.appendChild(siteElement);
 			}
-
-			return Xml.writeDocumentToString(dom);
-		} catch (Exception e) {
-			log.error("Exception in getSitesForUserForTerm: ", e);
-			return "error: " + e.getMessage();
 		}
+		catch (Exception e) {
+			log.error("Exception in getSitesForUserForTerm: ", e);
+		}
+		finally {
+			if (currentUserId != null) {
+				pathifyFlipSession(currentUserId);
+			}
+		}
+
+		return Xml.writeDocumentToString(dom);
 	}
 
 	@WebMethod
@@ -116,11 +122,12 @@ public class Pathify extends AbstractWebService {
 
 		establishPathifySession(sessionid);
 
+		String currentUserId = pathifyFlipSession(eid);
         try {
     		Document dom = Xml.createDocument();
     		Node all = dom.createElement("assignments");
     		dom.appendChild(all);
-    		
+
     		for (Assignment a : assignmentService.getAssignmentsForContext(siteId)) {
 				// Lots of checking in canSubmit around dates, groups, etc
     			if (a.getDraft()) continue;
@@ -134,7 +141,7 @@ public class Pathify extends AbstractWebService {
 				uElement.setAttribute("id", a.getId());
 				uElement.setAttribute("title", a.getTitle());
 				
-				String deepLink = assignmentService.getDeepLink(siteId, a.getId(), eid);
+				final String deepLink = assignmentService.getDeepLink(siteId, a.getId(), userDirectoryService.getCurrentUser().getId());
 				uElement.setAttribute("link", deepLink);
 
 				Instant openTime = a.getOpenDate();
@@ -154,8 +161,13 @@ public class Pathify extends AbstractWebService {
             return Xml.writeDocumentToString(dom);
     	}
     	catch (Exception e) {
-    		log.error("WS getAssignmentsForContext(): " + e.getClass().getName() + " : " + e.getMessage());
+    		log.error("WS getAssignmentsForContext()", e);
     	}
+		finally {
+			if (currentUserId != null) {
+				pathifyFlipSession(currentUserId);
+			}
+		}
     	
     	return "<assignments/ >";
     }
@@ -198,7 +210,7 @@ public class Pathify extends AbstractWebService {
 			
 		}
 		catch (Exception e) {
-			log.error("WS getAssessmentsDueSoon(): " + e.getMessage(), e);
+            log.error("WS getAssessmentsDueSoon(): {}", e.getMessage(), e);
 		}
 		finally {
 			if (currentUserId != null) {
@@ -224,6 +236,7 @@ public class Pathify extends AbstractWebService {
 		Node all = dom.createElement("assignments");
 		dom.appendChild(all);
 
+		String currentUserId = pathifyFlipSession(eid);
 		try {
 			User student = userDirectoryService.getUserByEid(eid);
 
@@ -231,21 +244,38 @@ public class Pathify extends AbstractWebService {
 				if (a.getDraft()) continue;
 
 				AssignmentSubmission s = assignmentService.getSubmission(a.getId(), student);
-				if (!s.getGraded() || !s.getReturned()) continue;
+				if (s == null || !s.getGraded() || !s.getReturned()) continue;
 
+				// Must be graded recently or we skip
 				Instant gradedDate = s.getDateReturned();
 				Instant nowMinusDays = Instant.now().minus(Duration.ofDays(PATHIFY_DAYS_AFTER));
 				if (gradedDate.isBefore(nowMinusDays)) continue;
 
+				// Get grade for display as raw grade is scaled
+				final String rawGrade = s.getGrade();
+				Integer scaleFactor = a.getScaleFactor() != null ? a.getScaleFactor() : Double.valueOf(Math.pow(10.0, 2)).intValue();
+				final String grade = assignmentService.getGradeDisplay(rawGrade, a.getTypeOfGrade(), scaleFactor);
+
+				// Deep link should take student directly to assignment
+				final String deepLink = assignmentService.getDeepLink(siteId, a.getId(), userDirectoryService.getCurrentUser().getId());
+
+				// Make the XML
 				Element uElement = dom.createElement("assignment");
 				uElement.setAttribute("id", a.getId());
 				uElement.setAttribute("title", a.getTitle());
-				uElement.setAttribute("grade", s.getGrade());
-				uElement.setAttribute("gradedDate", isoFormat.format(Date.from(gradedDate)));
+                uElement.setAttribute("gradedDate", isoFormat.format(Date.from(gradedDate)));
+				if (grade != null) uElement.setAttribute("grade", grade);
+				if (deepLink != null) uElement.setAttribute("link", deepLink);
+				all.appendChild(uElement);
 			}
 		}
 		catch (Exception e) {
-			log.error("WS getAssignmentsGradedRecently(): " + e.getClass().getName() + " : " + e.getMessage());
+            log.error("WS getAssignmentsGradedRecently", e);
+		}
+		finally {
+			if (currentUserId != null) {
+				pathifyFlipSession(currentUserId);
+			}
 		}
 
         return Xml.writeDocumentToString(dom);
@@ -273,25 +303,21 @@ public class Pathify extends AbstractWebService {
 			log.debug("Got this many AssessmentGradingData: {}", assessments.size());
 
 			for (AssessmentGradingData a : assessments) {
-				Instant gradedDate = a.getGradedDate().toInstant();
 				Instant submittedDate = a.getSubmittedDate().toInstant();
 				Instant nowMinusDays = Instant.now().minus(Duration.ofDays(PATHIFY_DAYS_AFTER));
-				if (gradedDate == null || gradedDate.isBefore(nowMinusDays)) continue;
+				if (submittedDate == null || submittedDate.isBefore(nowMinusDays)) continue;
 
 				Element uElement = dom.createElement("assessment");
 				uElement.setAttribute("id", a.getPublishedAssessmentId().toString());
 				uElement.setAttribute("title", a.getPublishedAssessmentTitle());
 				uElement.setAttribute("grade", a.getFinalScore().toString());
-                uElement.setAttribute("gradedDate", isoFormat.format(Date.from(gradedDate)));
-                if (submittedDate != null) {
-					uElement.setAttribute("submittedDate", isoFormat.format(Date.from(submittedDate)));
-				}
+                uElement.setAttribute("submittedDate", isoFormat.format(Date.from(submittedDate)));
 				all.appendChild(uElement);
 			}
 
 		}
 		catch (Exception e) {
-			log.error("WS getAssessmentsGradedRecently(): " + e.getMessage(), e);
+			log.error("WS getAssessmentsGradedRecently()", e);
 		}
 		finally {
 			if (currentUserId != null) {
@@ -320,16 +346,23 @@ public class Pathify extends AbstractWebService {
 
 		String channelRef = announcementService.channelReference(siteId, siteService.MAIN_CONTAINER);
 		ViewableFilter vf = new ViewableFilter(null, null, 99, announcementService);
+
+		String currentUserId = pathifyFlipSession(eid);
         try {
             List<Message> messages = announcementService.getMessages(channelRef, vf, true, false);
 			for (Message o : messages) {
 				// TODO: date filtering code
 				AnnouncementMessage msg = (AnnouncementMessage) o;
+				Instant pubInstant = msg.getHeader().getInstant();
+				Instant nowMinusDays = Instant.now().minus(Duration.ofDays(PATHIFY_DAYS_AFTER));
+				if (nowMinusDays.isAfter(pubInstant)) continue;
+				Date pubDate = Date.from(pubInstant);
+
 				Element uElement = dom.createElement("announcement");
 				uElement.setAttribute("id", msg.getId());
 				uElement.setAttribute("title", msg.getAnnouncementHeader().getSubject());
 				uElement.setAttribute("url", msg.getUrl());
-				uElement.setAttribute("pubDate", isoFormat.format(msg.getHeader().getInstant()));
+				uElement.setAttribute("pubDate", isoFormat.format(pubDate));
 				// Create a new text node for the body
 				Node bodyNode = dom.createTextNode(msg.getBody());
 				uElement.appendChild(bodyNode);
@@ -337,6 +370,11 @@ public class Pathify extends AbstractWebService {
 			}
         } catch (IdUnusedException | PermissionException e) {
 			log.warn("Could not get messages for site {}", siteId, e);
+		}
+		finally {
+			if (currentUserId != null) {
+				pathifyFlipSession(currentUserId);
+			}
 		}
 
         return Xml.writeDocumentToString(dom);
@@ -367,10 +405,10 @@ public class Pathify extends AbstractWebService {
         } catch (UserNotDefinedException e) {
             throw new RuntimeException(e);
         }
-        String oldUserId = currentSession.getUserId();
+        final String oldUserEid = currentSession.getUserEid();
 		currentSession.setUserId(flipTo.getId());
 		sessionManager.setCurrentSession(currentSession);
-		return oldUserId;
+		return oldUserEid;
 	}
 
 }
