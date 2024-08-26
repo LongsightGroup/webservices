@@ -299,7 +299,8 @@ public class Pathify extends AbstractWebService {
 
 		String currentUserId = pathifyFlipSession(eid);
 		try {
-			List<AssessmentGradingData> assessments = publishedAssessmentService.getBasicInfoOfLastOrHighestOrAverageSubmittedAssessmentsByScoringOption(eid, siteId, false);
+			String agentId = userDirectoryService.getUserId(eid);
+			List<AssessmentGradingData> assessments = publishedAssessmentService.getBasicInfoOfLastOrHighestOrAverageSubmittedAssessmentsByScoringOption(agentId, siteId, false);
 			log.debug("Got this many AssessmentGradingData: {}", assessments.size());
 
 			for (AssessmentGradingData a : assessments) {
