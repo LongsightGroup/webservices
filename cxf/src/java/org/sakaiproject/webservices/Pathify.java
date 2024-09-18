@@ -337,7 +337,7 @@ public class Pathify extends AbstractWebService {
     public String getRecentAnnouncements(
             @WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
             @WebParam(name = "siteId", partName = "siteId") @QueryParam("siteId") String siteId,
-			@WebParam(name = "eid", partName = "eid") @QueryParam("eid") String eid) {
+            @WebParam(name = "eid", partName = "eid") @QueryParam("eid") String eid) {
 
 		establishPathifySession(sessionid);
 
@@ -349,11 +349,10 @@ public class Pathify extends AbstractWebService {
 		ViewableFilter vf = new ViewableFilter(null, null, 99, announcementService);
 
 		String currentUserId = pathifyFlipSession(eid);
-        try {
-            List<Message> messages = announcementService.getMessages(channelRef, vf, true, false);
-			for (Message o : messages) {
+		try {
+			List<AnnouncementMessage> messages = announcementService.getMessages(channelRef, vf, true, false);
+			for (AnnouncementMessage msg : messages) {
 				// TODO: date filtering code
-				AnnouncementMessage msg = (AnnouncementMessage) o;
 				Instant pubInstant = msg.getHeader().getInstant();
 				Instant nowMinusDays = Instant.now().minus(Duration.ofDays(PATHIFY_DAYS_AFTER));
 				if (nowMinusDays.isAfter(pubInstant)) continue;
