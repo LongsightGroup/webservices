@@ -12,11 +12,11 @@
     <parent>
         <groupId>org.sakaiproject.webservices</groupId>
         <artifactId>webservices</artifactId>
-        <version>23-SNAPSHOT</version>
+        <version>25-SNAPSHOT</version>
     </parent>
 
     <properties>
-        <cxf.version>3.5.6</cxf.version>
+        <cxf.version>3.6.7</cxf.version>
     </properties>
 
     <dependencies>
@@ -189,11 +189,6 @@
         </dependency>
 
 	<!-- Needed for WSLongsight only -->
-    <dependency>
-      <groupId>org.sakaiproject.edu-services.gradebook</groupId>
-      <artifactId>gradebook-service-impl</artifactId>
-      <version>${sakai.version}</version>
-    </dependency>
     <dependency>
       <groupId>org.sakaiproject.profile2</groupId>
       <artifactId>profile2-api</artifactId>

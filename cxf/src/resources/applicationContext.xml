@@ -208,10 +208,6 @@
                     address="/soap/lessons"/>
 
 
-    <jaxws:endpoint id="MHAssignment"
-                    implementor="#org.sakaiproject.webservices.MHAssignment"
-                    address="/soap/mhassignment"/>
-
     <jaxws:endpoint id="WSLongsight"
                     implementor="#org.sakaiproject.webservices.WSLongsight"
                     address="/soap/longsight">
@@ -292,6 +288,5 @@
     </bean>
     <bean id="org.sakaiproject.webservices.Pathify" class="org.sakaiproject.webservices.Pathify" parent="org.sakaiproject.webservices.AbstractWebService" />
     <bean id="org.sakaiproject.webservices.WSLongsight" class="org.sakaiproject.webservices.WSLongsight" parent="org.sakaiproject.webservices.AbstractWebService" />
-    <bean id="org.sakaiproject.webservices.MHAssignment" class="org.sakaiproject.webservices.MHAssignment" parent="org.sakaiproject.webservices.AbstractWebService" />
 
 </beans>

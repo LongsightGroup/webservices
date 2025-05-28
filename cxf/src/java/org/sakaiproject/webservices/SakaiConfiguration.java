@@ -15,11 +15,9 @@
  */
 package org.sakaiproject.webservices;
 
-import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
@@ -34,6 +32,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.sakaiproject.component.api.ServerConfigurationService;
 import org.sakaiproject.component.api.ServerConfigurationService.ConfigItem;
 import org.sakaiproject.component.cover.ComponentManager;
+import org.sakaiproject.log.api.LogPermissionException;
 import org.sakaiproject.tool.api.Session;
 import org.sakaiproject.util.BasicConfigItem;
 import org.sakaiproject.util.Xml;
@@ -53,6 +52,30 @@ import lombok.extern.slf4j.Slf4j;
 @SOAPBinding(style = SOAPBinding.Style.RPC, use = SOAPBinding.Use.LITERAL)
 @Slf4j
 public class SakaiConfiguration extends AbstractWebService {
+
+    @WebMethod
+    @Path("/adjustLogLevel")
+    @Produces("text/plain")
+    @GET
+    public String adjustLogLevel(
+            @WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
+            @WebParam(name = "packageName", partName = "packageName") @QueryParam("packageName") String packageName,
+            @WebParam(name = "level", partName = "level") @QueryParam("level") String level) {
+        Session session = establishSession(sessionid);
+
+        if (!securityService.isSuperUser()) {
+            log.warn("NonSuperUser trying to collect configuration: " + session.getUserId());
+            throw new RuntimeException("NonSuperUser trying to collect configuration: " + session.getUserId());
+        }
+        try {
+            logConfigurationManager.setLogLevel(level, packageName);
+        } catch (LogPermissionException e) {
+            log.warn("Could not change level for logger {}", packageName, e);
+            throw new RuntimeException("Could not change level for logger " + packageName, e);
+        }
+
+        return "success";
+    }
 
     @WebMethod
     @Path("/getProperty")

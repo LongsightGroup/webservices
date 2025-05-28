@@ -17,7 +17,6 @@ package org.sakaiproject.webservices;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -26,7 +25,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 
@@ -53,14 +51,11 @@ import org.sakaiproject.calendar.api.CalendarEdit;
 import org.sakaiproject.calendar.api.CalendarEvent;
 import org.sakaiproject.calendar.api.CalendarEventEdit;
 import org.sakaiproject.calendar.api.RecurrenceRule;
-import org.sakaiproject.entity.api.EntityProducer;
-import org.sakaiproject.entity.api.EntityTransferrer;
 import org.sakaiproject.entity.api.ResourceProperties;
 import org.sakaiproject.entity.api.ResourcePropertiesEdit;
 import org.sakaiproject.event.api.UsageSession;
 import org.sakaiproject.event.api.UsageSessionService;
 import org.sakaiproject.exception.IdUnusedException;
-import org.sakaiproject.exception.PermissionException;
 import org.sakaiproject.site.api.Group;
 import org.sakaiproject.site.api.Site;
 import org.sakaiproject.site.api.SitePage;
@@ -69,16 +64,14 @@ import org.sakaiproject.site.api.SiteService.SelectionType;
 import org.sakaiproject.site.api.SiteService.SortType;
 import org.sakaiproject.site.api.ToolConfiguration;
 import org.sakaiproject.time.api.TimeRange;
+import org.sakaiproject.time.api.TimeService;
 import org.sakaiproject.tool.api.Session;
 import org.sakaiproject.tool.api.Tool;
-import org.sakaiproject.user.api.PreferencesEdit;
 import org.sakaiproject.user.api.User;
 import org.sakaiproject.user.api.UserEdit;
 import org.sakaiproject.user.api.UserNotDefinedException;
 import org.sakaiproject.userauditservice.api.UserAuditService;
-import org.sakaiproject.util.ArrayUtil;
 import org.sakaiproject.util.ResourceLoader;
-import org.sakaiproject.util.Web;
 import org.sakaiproject.util.Xml;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
@@ -475,30 +468,29 @@ public class SakaiScript extends AbstractWebService {
             Locale localeParam = LocaleUtils.toLocale(locale);
             if(!LocaleUtils.isAvailableLocale(localeParam)){
                 log.warn("WS changeUserLocale(): Locale not available");
-                return "";
+                return "error : Locale not available";
             }
         } catch(Exception e){
-            log.error("WS changeUserLocale(): " + e.getClass().getName() + " : " + e.getMessage());
-            return e.getClass().getName() + " : " + e.getMessage();
+            log.warn("WS changeUserLocale(): {}", e.toString());
+            return "error : " + e.getMessage();
         }
 
-        UserEdit userEdit = null;
-        PreferencesEdit prefs = null;
+        String userId = null;
         try {
             User user = userDirectoryService.getUserByEid(eid);
-            
-            try {
-                prefs = (PreferencesEdit) preferencesService.edit(user.getId());
-            } catch (IdUnusedException e1) {
-                prefs = (PreferencesEdit) preferencesService.add(user.getId());
-            }
-            ResourcePropertiesEdit props = prefs.getPropertiesEdit(ResourceLoader.APPLICATION_ID);
-            props.addProperty(ResourceLoader.LOCALE_KEY, locale);
-            preferencesService.commit(prefs);
+            userId = user.getId();
         } catch (Exception e) {
-            preferencesService.cancel(prefs);
-            log.error("WS changeUserLocale(): " + e.getClass().getName() + " : " + e.getMessage());
-            return e.getClass().getName() + " : " + e.getMessage();
+            log.warn("WS changeUserLocale(): {}", e.toString());
+            return "error : " + e.getMessage();
+        }
+
+        if (userId != null) {
+            preferencesService.applyEditWithAutoCommit(userId, edit -> {
+                ResourcePropertiesEdit props = edit.getPropertiesEdit(ResourceLoader.APPLICATION_ID);
+                props.addProperty(ResourceLoader.LOCALE_KEY, locale);
+            });
+        } else {
+            return "error : could not set locale for user [" + eid + "]";
         }
         return "success";
     }
@@ -715,9 +707,9 @@ public class SakaiScript extends AbstractWebService {
             Node list = dom.createElement("list");
             dom.appendChild(list);
 
-            for (Group group : site.getGroups()) {
-                final String groupTitleString = StringUtils.trimToEmpty(group.getTitle());
-                final String groupDescriptionString = StringUtils.trimToEmpty(group.getDescription());
+
+            for (Iterator iter = site.getGroups().iterator(); iter.hasNext(); ) {
+                Group group = (Group) iter.next();
 
                 Node groupNode = dom.createElement("group");
 
@@ -725,10 +717,10 @@ public class SakaiScript extends AbstractWebService {
                 groupId.appendChild(dom.createTextNode(group.getId()));
 
                 Node groupTitle = dom.createElement("title");
-                groupTitle.appendChild(dom.createTextNode(groupTitleString));
+                groupTitle.appendChild(dom.createTextNode(group.getTitle()));
 
                 Node groupDesc = dom.createElement("description");
-                groupDesc.appendChild(dom.createTextNode(groupDescriptionString));
+                groupDesc.appendChild(dom.createTextNode(group.getDescription()));
 
                 groupNode.appendChild(groupId);
                 groupNode.appendChild(groupTitle);
@@ -1294,7 +1286,7 @@ public class SakaiScript extends AbstractWebService {
             if (!userAuditList.isEmpty())
             {
                 userAuditRegistration.addToUserAuditing(userAuditList);
-        }
+            }
         }
         catch (Exception e) {
             log.error("WS addMemberToSiteWithRoleBatch(): " + e.getClass().getName() + " : " + e.getMessage());
@@ -2350,7 +2342,7 @@ public class SakaiScript extends AbstractWebService {
             //get the property that we wanted, as a string. this wont return multi valued ones
             //would need to use getPropertyList() for that, but then need to return XML since its a list.
             String propvalue = props.getProperty(propname);
-            return (propvalue != null) ? propvalue : "";
+            return propvalue;
 
         } catch (Exception e) {
             log.error("WS getSiteProperty(): " + e.getClass().getName() + " : " + e.getMessage());
@@ -3854,7 +3846,7 @@ public class SakaiScript extends AbstractWebService {
 
             Map<String, List<String>> toolsToImport = new HashMap<>();
             toolsToImport.put("sakai.resources", Arrays.asList(new String[]{sourcesiteid}));
-            siteManageService.importToolsIntoSiteThread(site, new ArrayList<>(), toolsToImport, new HashMap<>(), false);
+            siteManageService.importToolsIntoSiteThread(site, Collections.EMPTY_LIST, toolsToImport, Collections.EMPTY_MAP, Collections.EMPTY_MAP, false);
 
         } catch (Exception e) {
             log.error("WS copyResources(): " + e.getClass().getName() + " : " + e.getMessage());
@@ -4315,8 +4307,8 @@ public class SakaiScript extends AbstractWebService {
                 }
             }
 
-            siteManageService.importToolsIntoSiteThread(site, new ArrayList<>(), toolsToImport, new HashMap<>(), true);
-                
+            siteManageService.importToolsIntoSiteThread(site, Collections.EMPTY_LIST, toolsToImport, Collections.EMPTY_MAP, Collections.EMPTY_MAP, true);
+
         } catch (Exception e) {
             log.error("WS copySiteContent(): " + e.getClass().getName() + " : " + e.getMessage(), e);
             return e.getClass().getName() + " : " + e.getMessage();
@@ -4360,8 +4352,8 @@ public class SakaiScript extends AbstractWebService {
 
     		Map<String, List<String>> toolsToImport = new HashMap<>();
     		toolsToImport.put(toolid, Arrays.asList(new String[]{sourcesiteid}));
-    		siteManageService.importToolsIntoSiteThread(site, new ArrayList<>(), toolsToImport, new HashMap<>(), true);
-    		}
+			siteManageService.importToolsIntoSiteThread(site, Collections.EMPTY_LIST, toolsToImport, Collections.EMPTY_MAP, Collections.EMPTY_MAP, true);
+    	}
     	catch (Exception e)
     	{
     		log.error("WS copySiteContentForTool(): " + e.getClass().getName() + " : " + e.getMessage(), e);
@@ -4956,22 +4948,23 @@ public class SakaiScript extends AbstractWebService {
             throw new RuntimeException("WS setUserTimeZone(): Permission denied. Restricted to super users.");
         }
 
+        String userId = null;
         try {
             User user = userDirectoryService.getUserByEid(eid);
-            PreferencesEdit prefs = null;
-            try {
-                prefs = preferencesService.edit(user.getId());
-            } catch (Exception e1) {
-                prefs = preferencesService.add(user.getId());
-            }
-
-            ResourcePropertiesEdit props = prefs.getPropertiesEdit(timeService.APPLICATION_ID);
-            props.addProperty(timeService.TIMEZONE_KEY, timeZoneId);
-            preferencesService.commit(prefs);
-
+            userId = user.getId();
         } catch (Exception e) {
-            log.error("WS setUserTimeZone(): " + e.getClass().getName() + " : " + e.getMessage(), e);
-            return e.getClass().getName() + " : " + e.getMessage();
+            log.warn("WS setUserTimeZone() could not fetch user with eid [{}]: {}", eid, e.toString());
+            return "error : " + e.getMessage();
+        }
+
+        if (userId != null) {
+            preferencesService.applyEditWithAutoCommit(userId, edit -> {
+                ResourcePropertiesEdit props = edit.getPropertiesEdit(timeService.APPLICATION_ID);
+                props.addProperty(TimeService.TIMEZONE_KEY, timeZoneId);
+            });
+        } else {
+            log.warn("WS setUserTimeZone() could not fetch preferences for user [{}]", eid);
+            return "error : could not set timezone for user [" + eid + "]";
         }
         return "success";
     }
@@ -5017,7 +5010,6 @@ public class SakaiScript extends AbstractWebService {
             userMember.setActive(active);
             authzGroupService.save(realmEdit);
 
-            siteService.getSite(siteid).getUserRole(user.getId()).getId();
             List<String[]> userAuditList = Collections.singletonList(new String[]{siteid,user.getId(),"s",UserAuditService.USER_AUDIT_ACTION_UPDATE,userAuditRegistration.getDatabaseSourceKey(),userDirectoryService.getCurrentUser().getId()});
             userAuditRegistration.addToUserAuditing(userAuditList);
         } catch (Exception e) {
