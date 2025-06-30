@@ -190,11 +190,6 @@
 
 	<!-- Needed for WSLongsight only -->
     <dependency>
-      <groupId>org.sakaiproject.edu-services.gradebook</groupId>
-      <artifactId>gradebook-service-impl</artifactId>
-      <version>${sakai.version}</version>
-    </dependency>
-    <dependency>
       <groupId>org.sakaiproject.profile2</groupId>
       <artifactId>profile2-api</artifactId>
       <version>${sakai.version}</version>
