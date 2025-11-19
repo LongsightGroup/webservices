@@ -4155,6 +4155,7 @@ public class WSLongsight extends AbstractWebService {
 		clusterService.markClosing(serverid, !ClusterService.Status.CLOSING.toString().equals(status));
   }
 
+/*
 	@WebMethod
 	@Path("/longsightSetPronunciation")
 	@Produces("text/plain")
@@ -4231,6 +4232,7 @@ public class WSLongsight extends AbstractWebService {
 			LOG.warn("Error trying to set pronoun", e);
 		}
   }
+  */
 
 }
 
