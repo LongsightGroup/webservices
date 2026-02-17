@@ -43,11 +43,13 @@ import org.sakaiproject.site.api.SiteService.SortType;
 import org.sakaiproject.tool.api.Session;
 import org.sakaiproject.tool.assessment.facade.AssessmentFacade;
 import org.sakaiproject.tool.assessment.facade.AssessmentTemplateFacade;
+import org.sakaiproject.tool.assessment.facade.PublishedAssessmentFacade;
 import org.sakaiproject.tool.assessment.facade.QuestionPoolFacade;
 import org.sakaiproject.tool.assessment.qti.constants.QTIVersion;
 import org.sakaiproject.tool.assessment.qti.util.XmlUtil;
 import org.sakaiproject.tool.assessment.samlite.api.QuestionGroup;
 import org.sakaiproject.tool.assessment.services.assessment.AssessmentService;
+import org.sakaiproject.tool.assessment.services.assessment.PublishedAssessmentService;
 import org.sakaiproject.tool.assessment.services.qti.QTIService;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
@@ -62,6 +64,9 @@ import lombok.extern.slf4j.Slf4j;
 @SOAPBinding(style = SOAPBinding.Style.RPC, use = SOAPBinding.Use.LITERAL)
 @Slf4j
 public class TestsAndQuizzes extends AbstractWebService {	
+
+    private static final String CAN_DELETE_ANY = "assessment.deleteAssessment.any";
+    private static final String CAN_DELETE_OWN = "assessment.deleteAssessment.own";
 
 	/** 
 	 * createAssessmentFromText - WS Endpoint, exposing the SamLite createImportedAssessment()
@@ -390,5 +395,89 @@ public class TestsAndQuizzes extends AbstractWebService {
 		}
 
 		return resultado.toString();
+	}
+
+	/**
+	 * removeDraftAssessment - WS Endpoint for removing one draft Samigo assessment.
+	 */
+	@WebMethod
+	@Path("/removeDraftAssessment")
+	@Produces("text/plain")
+	@GET
+	public boolean removeDraftAssessment(
+		@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
+		@WebParam(name = "assessmentid", partName = "assessmentid") @QueryParam("assessmentid") String assessmentid)
+	{
+		Session session = establishSession(sessionid);
+
+		if (assessmentid == null || assessmentid.trim().isEmpty()) {
+			throw new IllegalArgumentException("WS TestsAndQuizzes.removeDraftAssessment(): assessmentid is required");
+		}
+
+		AssessmentService assessmentService = new AssessmentService();
+		AssessmentFacade assessment = assessmentService.getAssessment(assessmentid);
+		if (assessment == null) {
+			log.warn("WS TestsAndQuizzes.removeDraftAssessment(): assessment not found - {}", assessmentid);
+			return false;
+		}
+
+		String siteId = assessmentService.getAssessmentSiteId(assessmentid);
+		checkDeletePermission(session, siteId, assessment.getCreatedBy());
+		assessmentService.removeAssessment(assessmentid);
+		return true;
+	}
+
+	/**
+	 * removePublishedAssessment - WS Endpoint for removing one published Samigo assessment.
+	 */
+	@WebMethod
+	@Path("/removePublishedAssessment")
+	@Produces("text/plain")
+	@GET
+	public boolean removePublishedAssessment(
+		@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
+		@WebParam(name = "publishedassessmentid", partName = "publishedassessmentid") @QueryParam("publishedassessmentid") String publishedassessmentid)
+	{
+		Session session = establishSession(sessionid);
+
+		if (publishedassessmentid == null || publishedassessmentid.trim().isEmpty()) {
+			throw new IllegalArgumentException("WS TestsAndQuizzes.removePublishedAssessment(): publishedassessmentid is required");
+		}
+
+		PublishedAssessmentService publishedAssessmentService = new PublishedAssessmentService();
+		PublishedAssessmentFacade assessment = publishedAssessmentService.getPublishedAssessment(publishedassessmentid);
+		if (assessment == null) {
+			log.warn("WS TestsAndQuizzes.removePublishedAssessment(): published assessment not found - {}", publishedassessmentid);
+			return false;
+		}
+
+		checkDeletePermission(session, assessment.getOwnerSiteId(), assessment.getCreatedBy());
+		publishedAssessmentService.removeAssessment(publishedassessmentid, "remove");
+		return true;
+	}
+
+	private void checkDeletePermission(Session session, String siteId, String ownerUserId) {
+		String currentUserId = session.getUserId();
+		if (currentUserId == null || currentUserId.trim().isEmpty()) {
+			throw new SecurityException("WS TestsAndQuizzes: no current user in session");
+		}
+
+		if (securityService.isSuperUser(currentUserId)) {
+			return;
+		}
+
+		if (siteId == null || siteId.trim().isEmpty()) {
+			throw new SecurityException("WS TestsAndQuizzes: cannot evaluate delete permission without siteId");
+		}
+
+		String siteRef = "/site/" + siteId;
+		if (securityService.unlock(CAN_DELETE_ANY, siteRef)) {
+			return;
+		}
+		if (ownerUserId != null && ownerUserId.equals(currentUserId) && securityService.unlock(CAN_DELETE_OWN, siteRef)) {
+			return;
+		}
+
+		throw new SecurityException("WS TestsAndQuizzes: user cannot delete assessment in site " + siteId);
 	}
 }
