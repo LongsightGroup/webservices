@@ -15,17 +15,22 @@
  */
 package org.sakaiproject.webservices;
 
+import java.security.MessageDigest;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
 import javax.jws.WebService;
 import javax.jws.soap.SOAPBinding;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.POST;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 
@@ -77,6 +82,7 @@ public class ContentHosting extends AbstractWebService {
 	private static final String RESOURCE_TYPE_RESOURCE = "resource";
 	private static final String RESOURCE_TYPE_ATTACHMENT = "attachment";
 	private static Base64 base64 = new Base64();
+	private static final char[] HEX_CHARS = "0123456789abcdef".toCharArray();
 	
 	/**
 	 *	Get the collection id for the root collection associated with this site context.
@@ -363,6 +369,136 @@ public class ContentHosting extends AbstractWebService {
 	}
 
 	/**
+	 * Return the immutable content fingerprint Beacon needs before preparing a guarded LMS write-back.
+	 *
+	 * @param sessionid a valid sessionid
+	 * @param resourceId id of the resource
+	 * @return XML with content type, length, stored SHA-256, display name, and modified date
+	 */
+    @WebMethod
+    @Path("/beaconGetContentItemFingerprint")
+    @Produces("text/plain")
+    @GET
+    public String beaconGetContentItemFingerprint(
+            @WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
+            @WebParam(name = "resourceId", partName = "resourceId") @QueryParam("resourceId") String resourceId) {
+
+        try {
+			Session s = establishSession(sessionid);
+			ContentResource resource = contentHostingService.getResource(resourceId);
+
+			Document dom = Xml.createDocument();
+			Element item = dom.createElement("beaconContentItemFingerprint");
+			dom.appendChild(item);
+			item.setAttribute("status", "success");
+			addResourceFingerprintAttributes(item, resource);
+
+			return Xml.writeDocumentToString(dom);
+		}
+		catch (Exception e) {
+			log.error("beaconGetContentItemFingerprint(): " + e.getClass().getName() + " : " + e.getMessage());
+			return beaconFailureResponse("beaconContentItemFingerprint", resourceId, e.getMessage());
+		}
+	}
+
+	/**
+	 * Replace an existing resource only when its current content hash still matches Beacon's source snapshot.
+	 *
+	 * This gives Beacon a non-destructive write seam: staff-approved PDFs can be written back without silently
+	 * overwriting an instructor or administrator edit that happened after Beacon captured the original artifact.
+	 *
+	 * @param sessionid a valid sessionid
+	 * @param resourceId id of the resource
+	 * @param expectedSha256 SHA-256 Beacon captured before approval
+	 * @param contentBase64 replacement content encoded as Base64
+	 * @param contentType replacement content type, or blank to preserve the current type
+	 * @return XML with success, conflict, or failure status and before/after hashes
+	 */
+    @WebMethod
+    @Path("/beaconReplaceContentItemIfSha256Matches")
+    @Produces("text/plain")
+    @Consumes("application/x-www-form-urlencoded")
+    @POST
+    public String beaconReplaceContentItemIfSha256Matches(
+            @WebParam(name = "sessionid", partName = "sessionid") @FormParam("sessionid") String sessionid,
+            @WebParam(name = "resourceId", partName = "resourceId") @FormParam("resourceId") String resourceId,
+            @WebParam(name = "expectedSha256", partName = "expectedSha256") @FormParam("expectedSha256") String expectedSha256,
+            @WebParam(name = "contentBase64", partName = "contentBase64") @FormParam("contentBase64") String contentBase64,
+            @WebParam(name = "contentType", partName = "contentType") @FormParam("contentType") String contentType) {
+
+        String normalizedExpectedSha256 = normalizeSha256(expectedSha256);
+
+		try {
+			Session s = establishSession(sessionid);
+
+			if (StringUtils.isBlank(resourceId)) {
+				return beaconFailureResponse("beaconContentItemUpdate", resourceId, "resourceId is required");
+			}
+			if (StringUtils.isBlank(normalizedExpectedSha256)) {
+				return beaconFailureResponse("beaconContentItemUpdate", resourceId, "expectedSha256 is required");
+			}
+			if (StringUtils.isBlank(contentBase64)) {
+				return beaconFailureResponse("beaconContentItemUpdate", resourceId, "contentBase64 is required");
+			}
+
+			ContentResource currentResource = contentHostingService.getResource(resourceId);
+			String currentSha256 = resourceSha256(currentResource);
+			byte[] replacementContent = base64.decode(contentBase64);
+			String candidateSha256 = sha256Hex(replacementContent);
+
+			if (!normalizedExpectedSha256.equals(currentSha256)) {
+				Document dom = Xml.createDocument();
+				Element item = dom.createElement("beaconContentItemUpdate");
+				dom.appendChild(item);
+
+				if (candidateSha256.equals(currentSha256)) {
+					item.setAttribute("status", "success");
+					item.setAttribute("alreadyApplied", "true");
+					item.setAttribute("message", "Replacement content is already stored on this resource.");
+				}
+				else {
+					item.setAttribute("status", "conflict");
+					item.setAttribute("message", "Current content SHA-256 does not match expectedSha256.");
+				}
+
+				setAttributeIfPresent(item, "resourceId", resourceId);
+				setAttributeIfPresent(item, "expectedSha256", normalizedExpectedSha256);
+				setAttributeIfPresent(item, "currentSha256", currentSha256);
+				setAttributeIfPresent(item, "candidateSha256", candidateSha256);
+				addResourceFingerprintAttributes(item, currentResource);
+				return Xml.writeDocumentToString(dom);
+			}
+
+			String replacementContentType = contentType;
+			if (StringUtils.isBlank(replacementContentType)) {
+				replacementContentType = currentResource.getContentType();
+			}
+
+			ContentResource updatedResource = contentHostingService.updateResource(resourceId, replacementContentType, replacementContent);
+			if (updatedResource == null) {
+				updatedResource = contentHostingService.getResource(resourceId);
+			}
+
+			String updatedSha256 = resourceSha256(updatedResource);
+			Document dom = Xml.createDocument();
+			Element item = dom.createElement("beaconContentItemUpdate");
+			dom.appendChild(item);
+			item.setAttribute("status", "success");
+			setAttributeIfPresent(item, "resourceId", resourceId);
+			setAttributeIfPresent(item, "previousSha256", currentSha256);
+			setAttributeIfPresent(item, "currentSha256", updatedSha256);
+			setAttributeIfPresent(item, "candidateSha256", candidateSha256);
+			addResourceFingerprintAttributes(item, updatedResource);
+
+			return Xml.writeDocumentToString(dom);
+		}
+		catch (Exception e) {
+			log.error("beaconReplaceContentItemIfSha256Matches(): " + e.getClass().getName() + " : " + e.getMessage());
+			return beaconFailureResponse("beaconContentItemUpdate", resourceId, e.getMessage());
+		}
+	}
+
+	/**
 	 *	Delete the content resource given by an id (with full path).
 	 *
 	 *	TODO:  Add a message notifying the Resource tool that a root.has been added to a site.
@@ -599,6 +735,60 @@ public class ContentHosting extends AbstractWebService {
 		
 		ret = Xml.writeDocumentToString(dom);
 		return ret;
+	}
+
+
+	private String beaconFailureResponse(String rootName, String resourceId, String message) {
+		Document dom = Xml.createDocument();
+		Element item = dom.createElement(rootName);
+		dom.appendChild(item);
+		item.setAttribute("status", "failure");
+		setAttributeIfPresent(item, "resourceId", resourceId);
+		setAttributeIfPresent(item, "message", message);
+		return Xml.writeDocumentToString(dom);
+	}
+
+	private void addResourceFingerprintAttributes(Element item, ContentResource resource) throws Exception {
+		setAttributeIfPresent(item, "resourceId", resource.getId());
+		setAttributeIfPresent(item, "contentType", resource.getContentType());
+		item.setAttribute("contentLength", String.valueOf(resource.getContentLength()));
+		setAttributeIfPresent(item, "sha256", resourceSha256(resource));
+
+		ResourceProperties props = resource.getProperties();
+		if (props != null) {
+			setAttributeIfPresent(item, "displayName", props.getProperty(ResourceProperties.PROP_DISPLAY_NAME));
+			setAttributeIfPresent(item, "modifiedDate", props.getProperty(ResourceProperties.PROP_MODIFIED_DATE));
+		}
+	}
+
+	private void setAttributeIfPresent(Element item, String name, String value) {
+		if (StringUtils.isNotBlank(value)) {
+			item.setAttribute(name, value);
+		}
+	}
+
+	private String resourceSha256(ContentResource resource) throws Exception {
+		String sha256 = normalizeSha256(resource.getContentSha256());
+		if (StringUtils.isBlank(sha256)) {
+			sha256 = sha256Hex(resource.getContent());
+		}
+		return sha256;
+	}
+
+	private String normalizeSha256(String sha256) {
+		return StringUtils.trimToEmpty(sha256).toLowerCase(Locale.ROOT);
+	}
+
+	private String sha256Hex(byte[] content) throws Exception {
+		MessageDigest digest = MessageDigest.getInstance("SHA-256");
+		byte[] hash = digest.digest(content);
+		char[] hex = new char[hash.length * 2];
+		for (int i = 0; i < hash.length; i++) {
+			int value = hash[i] & 0xff;
+			hex[i * 2] = HEX_CHARS[value >>> 4];
+			hex[i * 2 + 1] = HEX_CHARS[value & 0x0f];
+		}
+		return new String(hex);
 	}
 
 
