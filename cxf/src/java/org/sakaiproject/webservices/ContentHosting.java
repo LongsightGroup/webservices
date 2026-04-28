@@ -369,17 +369,17 @@ public class ContentHosting extends AbstractWebService {
 	}
 
 	/**
-	 * Return the immutable content fingerprint Beacon needs before preparing a guarded LMS write-back.
+	 * Return the immutable content fingerprint needed before preparing a guarded resource update.
 	 *
 	 * @param sessionid a valid sessionid
 	 * @param resourceId id of the resource
 	 * @return XML with content type, length, stored SHA-256, display name, and modified date
 	 */
     @WebMethod
-    @Path("/beaconGetContentItemFingerprint")
+    @Path("/getContentItemFingerprint")
     @Produces("text/plain")
     @GET
-    public String beaconGetContentItemFingerprint(
+    public String getContentItemFingerprint(
             @WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
             @WebParam(name = "resourceId", partName = "resourceId") @QueryParam("resourceId") String resourceId) {
 
@@ -388,7 +388,7 @@ public class ContentHosting extends AbstractWebService {
 			ContentResource resource = contentHostingService.getResource(resourceId);
 
 			Document dom = Xml.createDocument();
-			Element item = dom.createElement("beaconContentItemFingerprint");
+			Element item = dom.createElement("contentItemFingerprint");
 			dom.appendChild(item);
 			item.setAttribute("status", "success");
 			addResourceFingerprintAttributes(item, resource);
@@ -396,30 +396,30 @@ public class ContentHosting extends AbstractWebService {
 			return Xml.writeDocumentToString(dom);
 		}
 		catch (Exception e) {
-			log.error("beaconGetContentItemFingerprint(): " + e.getClass().getName() + " : " + e.getMessage());
-			return beaconFailureResponse("beaconContentItemFingerprint", resourceId, e.getMessage());
+			log.error("getContentItemFingerprint(): " + e.getClass().getName() + " : " + e.getMessage());
+			return contentItemFailureResponse("contentItemFingerprint", resourceId, e.getMessage());
 		}
 	}
 
 	/**
-	 * Replace an existing resource only when its current content hash still matches Beacon's source snapshot.
+	 * Replace an existing resource only when its current content hash still matches the expected snapshot.
 	 *
-	 * This gives Beacon a non-destructive write seam: staff-approved PDFs can be written back without silently
-	 * overwriting an instructor or administrator edit that happened after Beacon captured the original artifact.
+	 * This gives clients a non-destructive compare-and-swap write seam so automated updates do not silently
+	 * overwrite a user edit that happened after the client captured the original artifact.
 	 *
 	 * @param sessionid a valid sessionid
 	 * @param resourceId id of the resource
-	 * @param expectedSha256 SHA-256 Beacon captured before approval
+	 * @param expectedSha256 SHA-256 captured before approval
 	 * @param contentBase64 replacement content encoded as Base64
 	 * @param contentType replacement content type, or blank to preserve the current type
 	 * @return XML with success, conflict, or failure status and before/after hashes
 	 */
     @WebMethod
-    @Path("/beaconReplaceContentItemIfSha256Matches")
+    @Path("/replaceContentItemIfSha256Matches")
     @Produces("text/plain")
     @Consumes("application/x-www-form-urlencoded")
     @POST
-    public String beaconReplaceContentItemIfSha256Matches(
+    public String replaceContentItemIfSha256Matches(
             @WebParam(name = "sessionid", partName = "sessionid") @FormParam("sessionid") String sessionid,
             @WebParam(name = "resourceId", partName = "resourceId") @FormParam("resourceId") String resourceId,
             @WebParam(name = "expectedSha256", partName = "expectedSha256") @FormParam("expectedSha256") String expectedSha256,
@@ -432,13 +432,13 @@ public class ContentHosting extends AbstractWebService {
 			Session s = establishSession(sessionid);
 
 			if (StringUtils.isBlank(resourceId)) {
-				return beaconFailureResponse("beaconContentItemUpdate", resourceId, "resourceId is required");
+				return contentItemFailureResponse("contentItemUpdate", resourceId, "resourceId is required");
 			}
 			if (StringUtils.isBlank(normalizedExpectedSha256)) {
-				return beaconFailureResponse("beaconContentItemUpdate", resourceId, "expectedSha256 is required");
+				return contentItemFailureResponse("contentItemUpdate", resourceId, "expectedSha256 is required");
 			}
 			if (StringUtils.isBlank(contentBase64)) {
-				return beaconFailureResponse("beaconContentItemUpdate", resourceId, "contentBase64 is required");
+				return contentItemFailureResponse("contentItemUpdate", resourceId, "contentBase64 is required");
 			}
 
 			ContentResource currentResource = contentHostingService.getResource(resourceId);
@@ -448,7 +448,7 @@ public class ContentHosting extends AbstractWebService {
 
 			if (!normalizedExpectedSha256.equals(currentSha256)) {
 				Document dom = Xml.createDocument();
-				Element item = dom.createElement("beaconContentItemUpdate");
+				Element item = dom.createElement("contentItemUpdate");
 				dom.appendChild(item);
 
 				if (candidateSha256.equals(currentSha256)) {
@@ -481,7 +481,7 @@ public class ContentHosting extends AbstractWebService {
 
 			String updatedSha256 = resourceSha256(updatedResource);
 			Document dom = Xml.createDocument();
-			Element item = dom.createElement("beaconContentItemUpdate");
+			Element item = dom.createElement("contentItemUpdate");
 			dom.appendChild(item);
 			item.setAttribute("status", "success");
 			setAttributeIfPresent(item, "resourceId", resourceId);
@@ -493,8 +493,8 @@ public class ContentHosting extends AbstractWebService {
 			return Xml.writeDocumentToString(dom);
 		}
 		catch (Exception e) {
-			log.error("beaconReplaceContentItemIfSha256Matches(): " + e.getClass().getName() + " : " + e.getMessage());
-			return beaconFailureResponse("beaconContentItemUpdate", resourceId, e.getMessage());
+			log.error("replaceContentItemIfSha256Matches(): " + e.getClass().getName() + " : " + e.getMessage());
+			return contentItemFailureResponse("contentItemUpdate", resourceId, e.getMessage());
 		}
 	}
 
@@ -738,7 +738,7 @@ public class ContentHosting extends AbstractWebService {
 	}
 
 
-	private String beaconFailureResponse(String rootName, String resourceId, String message) {
+	private String contentItemFailureResponse(String rootName, String resourceId, String message) {
 		Document dom = Xml.createDocument();
 		Element item = dom.createElement(rootName);
 		dom.appendChild(item);
