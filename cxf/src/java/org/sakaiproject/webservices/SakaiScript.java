@@ -3846,7 +3846,7 @@ public class SakaiScript extends AbstractWebService {
 
             Map<String, List<String>> toolsToImport = new HashMap<>();
             toolsToImport.put("sakai.resources", Arrays.asList(new String[]{sourcesiteid}));
-            siteManageService.importToolsIntoSiteThread(site, Collections.EMPTY_LIST, toolsToImport, Collections.EMPTY_MAP, Collections.EMPTY_MAP, false);
+            siteManageService.importToolsIntoSiteThread(site, new ArrayList<>(), toolsToImport, new HashMap<>(), new HashMap<>(), false);
 
         } catch (Exception e) {
             log.error("WS copyResources(): " + e.getClass().getName() + " : " + e.getMessage());
@@ -4240,12 +4240,11 @@ public class SakaiScript extends AbstractWebService {
     }
 
     /**
-     * Copy the content from a site to another site. It creates a list of tools in the source site and transfers that content
-     * to the destination site.
+     * Copy content from a template site to a structurally duplicated destination site.
      *
      * @param sessionid         the id of a valid session
-     * @param sourcesiteid      the id of the source site
-     * @param destinationsiteid the id of the destiny site
+     * @param sourcesiteid      the id of the source template site
+     * @param destinationsiteid the id of the destination site
      * @return success or exception message
      */
     @WebMethod
@@ -4261,53 +4260,24 @@ public class SakaiScript extends AbstractWebService {
 
         try {
 
-            //check if both sites exist
+            if (!securityService.isSuperUser(session.getUserId())) {
+                log.warn("WS copySiteContent(): Permission denied. Must be super user to copy template site content.");
+                throw new RuntimeException("WS copySiteContent(): Permission denied. Must be super user to copy template site content.");
+            }
+
             Site sourceSite = siteService.getSite(sourcesiteid);
             Site site = siteService.getSite(destinationsiteid);
 
-            //check if super user
-            boolean isSuperUser = false;
-            if (securityService.isSuperUser(session.getUserId())) {
-                isSuperUser = true;
-            }
-
-            // If not admin, check maintainer membership in the source site
-            if (!isSuperUser && !securityService.unlock(SiteService.SECURE_UPDATE_SITE, site.getReference())) {
-                log.warn("WS copySiteContent(): Permission denied. Must be super user to copy a site in which you are not a maintainer.");
-                throw new RuntimeException("WS copySiteContent(): Permission denied. Must be super user to copy a site in which you are not a maintainer.");
-            }
-
-            List<SitePage> pages = sourceSite.getPages();
             Map<String, List<String>> toolsToImport = new HashMap<>();
-            for (SitePage page : pages) {
-
-                //get tools in page
-                List<ToolConfiguration> tools = page.getTools();
-                boolean includePage = true;
-                for (ToolConfiguration toolConfig : tools) {
-                    //if we not a superAdmin, check the page properties
-                    //if any tool on this page is hidden, skip the rest of the tools and exclude this page from the output
-                    //this makes the behaviour consistent with the portal
-
-                    //if not superUser, process  tool function requirements
-                    if (!isSuperUser) {
-
-                        //skip processing tool if we've skipped tools previously on this page
-                        if (!includePage) {
-                            continue;
-                        }
-
-                        //skip this tool if not visible, ultimately hiding the whole page
-                        if (!toolManager.isVisible(sourceSite, toolConfig)) {
-                            includePage = false;
-                            break;
-                        }
-                    }
+            for (SitePage page : sourceSite.getPages()) {
+                for (ToolConfiguration toolConfig : page.getTools()) {
                     toolsToImport.put(toolConfig.getToolId(), Arrays.asList(new String[]{sourcesiteid}));
                 }
             }
 
-            siteManageService.importToolsIntoSiteThread(site, Collections.EMPTY_LIST, toolsToImport, Collections.EMPTY_MAP, Collections.EMPTY_MAP, true);
+            // Do not replace this with importToolContent(). That duplicate-site helper does not
+            // run the cleanup path Lessons needs and can miss tools that are not first on a page.
+            siteManageService.importToolsIntoSiteThread(site, new ArrayList<>(), toolsToImport, new HashMap<>(), new HashMap<>(), true);
 
         } catch (Exception e) {
             log.error("WS copySiteContent(): " + e.getClass().getName() + " : " + e.getMessage(), e);
@@ -4352,7 +4322,7 @@ public class SakaiScript extends AbstractWebService {
 
     		Map<String, List<String>> toolsToImport = new HashMap<>();
     		toolsToImport.put(toolid, Arrays.asList(new String[]{sourcesiteid}));
-			siteManageService.importToolsIntoSiteThread(site, Collections.EMPTY_LIST, toolsToImport, Collections.EMPTY_MAP, Collections.EMPTY_MAP, true);
+			siteManageService.importToolsIntoSiteThread(site, new ArrayList<>(), toolsToImport, new HashMap<>(), new HashMap<>(), true);
     	}
     	catch (Exception e)
     	{
