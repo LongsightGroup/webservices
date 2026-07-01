@@ -51,8 +51,6 @@ import org.sakaiproject.calendar.api.CalendarEdit;
 import org.sakaiproject.calendar.api.CalendarEvent;
 import org.sakaiproject.calendar.api.CalendarEventEdit;
 import org.sakaiproject.calendar.api.RecurrenceRule;
-import org.sakaiproject.entity.api.EntityProducer;
-import org.sakaiproject.entity.api.EntityTransferrer;
 import org.sakaiproject.entity.api.ResourceProperties;
 import org.sakaiproject.entity.api.ResourcePropertiesEdit;
 import org.sakaiproject.event.api.UsageSession;
@@ -4267,47 +4265,10 @@ public class SakaiScript extends AbstractWebService {
                 throw new RuntimeException("WS copySiteContent(): Permission denied. Must be super user to copy template site content.");
             }
 
-            Site sourceSite = siteService.getSite(sourcesiteid);
+            siteService.getSite(sourcesiteid);
             Site site = siteService.getSite(destinationsiteid);
 
-            Set<String> copyPermissionToolIds = new HashSet<>();
-            for (EntityProducer entityProducer : entityManager.getEntityProducers()) {
-                if (entityProducer instanceof EntityTransferrer) {
-                    EntityTransferrer entityTransferrer = (EntityTransferrer) entityProducer;
-                    if (entityTransferrer.supportsTransferOption(EntityTransferrer.COPY_PERMISSIONS_OPTION)) {
-                        copyPermissionToolIds.addAll(Arrays.asList(entityTransferrer.myToolIds()));
-                    }
-                }
-            }
-
-            Map<String, List<String>> toolsToImport = new HashMap<>();
-            Map<String, Map<String, List<String>>> toolOptions = new HashMap<>();
-            for (SitePage page : sourceSite.getPages()) {
-                for (ToolConfiguration toolConfig : page.getTools()) {
-                    String toolId = toolConfig.getToolId();
-                    toolsToImport.put(toolId, Arrays.asList(new String[]{sourcesiteid}));
-
-                    List<String> options = new ArrayList<>();
-                    if ("sakai.gradebookng".equals(toolId)) {
-                        options.add(EntityTransferrer.COPY_SETTINGS_OPTION);
-                    }
-                    if (copyPermissionToolIds.contains(toolId)) {
-                        options.add(EntityTransferrer.COPY_PERMISSIONS_OPTION);
-                    }
-                    if (!options.isEmpty()) {
-                        Map<String, List<String>> siteOptions = new HashMap<>();
-                        siteOptions.put(sourcesiteid, options);
-                        toolOptions.put(toolId, siteOptions);
-                    }
-                }
-            }
-
-            // Do not replace this with importToolContent(). That duplicate-site helper does not
-            // run the cleanup path Lessons needs and can miss tools that are not first on a page.
-            // Gradebook settings, including selected grading schema, are only copied when the
-            // Gradebook importer receives the copy.settings option. Tools with permission panels
-            // need copy.permissions to preserve template-specific tool permissions.
-            siteManageService.importToolsIntoSiteThread(site, new ArrayList<>(), toolsToImport, new HashMap<>(), toolOptions, true);
+            siteManageService.importToolContent(sourcesiteid, site, false);
 
         } catch (Exception e) {
             log.error("WS copySiteContent(): " + e.getClass().getName() + " : " + e.getMessage(), e);
