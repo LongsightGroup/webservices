@@ -41,8 +41,6 @@ import org.sakaiproject.event.api.ActivityService;
 import org.sakaiproject.grading.api.GradingService;
 import org.sakaiproject.log.api.LogConfigurationManager;
 import org.sakaiproject.messagebundle.api.MessageBundleService;
-import org.sakaiproject.profile2.logic.ProfileLogic;
-import org.sakaiproject.profile2.logic.SakaiProxy;
 import org.sakaiproject.site.api.SiteService;
 import org.sakaiproject.sitemanage.api.SiteManageService;
 import org.sakaiproject.thread_local.api.ThreadLocalManager;
@@ -115,8 +113,6 @@ public class AbstractWebService {
     protected SiteManageService siteManageService;
     protected MemoryService memoryService;
     protected ImportService importService;
-    protected ProfileLogic profileLogic;
-    protected SakaiProxy sakaiProxy;
 
     /**
      * Get the Session related to the given sessionid
@@ -351,16 +347,5 @@ public class AbstractWebService {
     public void setSiteManageService(SiteManageService siteManageService) {
         this.siteManageService = siteManageService;
     }
-
-    @WebMethod(exclude = true)
-    public void setProfileLogic(ProfileLogic profileLogic) {
-        this.profileLogic = profileLogic;
-    }
-
-    @WebMethod(exclude = true)
-    public void setSakaiProxy(SakaiProxy sakaiProxy) {
-        this.sakaiProxy = sakaiProxy;
-    }
-
 
 }
