@@ -60,6 +60,7 @@ import org.sakaiproject.id.api.IdManager;
 import org.sakaiproject.lessonbuildertool.LessonBuilderAccessAPI;
 import org.sakaiproject.tool.assessment.shared.api.questionpool.QuestionPoolServiceAPI;
 import org.sakaiproject.userauditservice.api.UserAuditRegistration;
+import org.sakaiproject.userauditservice.api.UserAuditService;
 import org.sakaiproject.memory.api.MemoryService;
 import org.sakaiproject.db.api.SqlService;
 import org.sakaiproject.importer.api.ImportService;
@@ -112,6 +113,7 @@ public class AbstractWebService {
     protected FormattedText formattedText;
     protected SqlService sqlService;
     protected UserAuditRegistration userAuditRegistration;
+    protected UserAuditService userAuditService;
     protected SiteManageService siteManageService;
     protected MemoryService memoryService;
     protected ImportService importService;
@@ -345,6 +347,11 @@ public class AbstractWebService {
     @WebMethod(exclude = true)
     public void setUserAuditRegistration(UserAuditRegistration userAuditRegistration) {
         this.userAuditRegistration = userAuditRegistration;
+    }
+
+    @WebMethod(exclude = true)
+    public void setUserAuditService(UserAuditService userAuditService) {
+        this.userAuditService = userAuditService;
     }
 
     @WebMethod(exclude = true)
