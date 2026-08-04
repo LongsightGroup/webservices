@@ -697,11 +697,17 @@ public class WSLongsight extends AbstractWebService {
 		Session session = establishSession(sessionid);
 
 		try {
-			Site siteEdit = null;
-			siteEdit = siteService.getSite(siteid);
+			Site siteEdit = siteService.getSite(siteid);
 
 			ToolConfiguration tool = siteEdit.getToolForCommonId(toolId);
+			if (tool == null) {
+				return "failure: no tool with common id " + toolId + " was found in site " + siteid;
+			}
+
 			SitePage sitePage = tool.getContainingPage();
+			if (sitePage == null) {
+				return "failure: tool " + toolId + " is not assigned to a page in site " + siteid;
+			}
 
 			sitePage.removeTool(tool);
 			siteEdit.removePage(sitePage);
@@ -4235,4 +4241,3 @@ public class WSLongsight extends AbstractWebService {
   */
 
 }
-
