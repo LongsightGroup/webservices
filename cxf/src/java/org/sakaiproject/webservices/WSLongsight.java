@@ -39,6 +39,7 @@ import org.sakaiproject.grading.api.GradeDefinition;
 import org.sakaiproject.grading.api.model.Gradebook;
 import org.sakaiproject.importer.api.ImportDataSource;
 import org.sakaiproject.importer.api.ResetOnCloseInputStream;
+import org.sakaiproject.lti.api.LTIService;
 import org.sakaiproject.memory.api.Cache;
 import org.sakaiproject.site.api.Group;
 import org.sakaiproject.site.api.Site;
@@ -92,6 +93,7 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
 
@@ -554,6 +556,61 @@ public class WSLongsight extends AbstractWebService {
 
 		}
 
+	}
+
+	@WebMethod
+	@Path("/longsightAddPreconfiguredLTITool")
+	@Produces("text/plain")
+	@GET
+	public String longsightAddPreconfiguredLTITool(
+			@WebParam(name = "sessionid", partName = "sessionid") @QueryParam("sessionid") String sessionid,
+			@WebParam(name = "siteid", partName = "siteid") @QueryParam("siteid") String siteid,
+			@WebParam(name = "toolId", partName = "toolId") @QueryParam("toolId") long toolId,
+			@WebParam(name = "toolTitle", partName = "toolTitle") @QueryParam("toolTitle") String toolTitle)
+	{
+		establishSession(sessionid);
+
+		if (toolId < 1) {
+			return "failure: toolId must be a positive LTI_TOOLS.ID";
+		}
+
+		Long contentId;
+		try {
+			String toolIdString = Long.toString(toolId);
+			Properties properties = new Properties();
+			properties.setProperty(LTIService.LTI_TOOL_ID, toolIdString);
+
+			if (StringUtils.isNotBlank(toolTitle)) {
+				properties.setProperty(LTIService.LTI_TITLE, toolTitle);
+			}
+
+			Object contentResult = ltiService.insertToolContent(null, toolIdString, properties, siteid);
+			if (!(contentResult instanceof Long)) {
+				return "failure: unable to create LTI content: " + contentResult;
+			}
+
+			contentId = (Long) contentResult;
+		}
+		catch (Exception e) {
+			LOG.error("Unable to create LTI content for preconfigured LTI tool " + toolId
+					+ " in site " + siteid, e);
+			return e.getClass().getName() + " : " + e.getMessage();
+		}
+
+		try {
+			Object linkResult = ltiService.insertToolSiteLink(contentId.toString(), toolTitle, siteid);
+			if (!Boolean.TRUE.equals(linkResult)) {
+				return "failure: unable to create site link for LTI content " + contentId + ": " + linkResult;
+			}
+
+			return "success:" + contentId;
+		}
+		catch (Exception e) {
+			LOG.error("LTI content " + contentId + " was created, but its site link could not be created in site "
+					+ siteid, e);
+			return "failure: LTI content " + contentId + " was created but its site link failed: "
+					+ e.getClass().getName() + " : " + e.getMessage();
+		}
 	}
 
 	@WebMethod

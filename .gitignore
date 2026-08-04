@@ -2,6 +2,7 @@
 
 # Custom
 collaborate/elluminate-impl/reports/cobertura/
+.java-version
 
 ### Maven ###
 target/

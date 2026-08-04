@@ -40,6 +40,7 @@ import org.sakaiproject.event.api.UsageSessionService;
 import org.sakaiproject.event.api.ActivityService;
 import org.sakaiproject.grading.api.GradingService;
 import org.sakaiproject.log.api.LogConfigurationManager;
+import org.sakaiproject.lti.api.LTIService;
 import org.sakaiproject.messagebundle.api.MessageBundleService;
 import org.sakaiproject.profile2.logic.ProfileLogic;
 import org.sakaiproject.profile2.logic.SakaiProxy;
@@ -85,6 +86,7 @@ public class AbstractWebService {
     protected EventTrackingService eventTrackingService;
     protected GradingService gradingService;
     protected LogConfigurationManager logConfigurationManager;
+    protected LTIService ltiService;
     protected SecurityService securityService;
     protected ServerConfigurationService serverConfigurationService;
     protected SiteService siteService;
@@ -187,6 +189,11 @@ public class AbstractWebService {
     @WebMethod(exclude = true)
     public void setLogConfigurationManager(LogConfigurationManager logConfigurationManager) {
         this.logConfigurationManager = logConfigurationManager;
+    }
+
+    @WebMethod(exclude = true)
+    public void setLtiService(LTIService ltiService) {
+        this.ltiService = ltiService;
     }
     
     @WebMethod(exclude = true)

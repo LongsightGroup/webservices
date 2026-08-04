@@ -259,6 +259,7 @@
         <property name="userAuditRegistration" ref="org.sakaiproject.userauditservice.api.UserAuditRegistration.webservice"/>
         <property name="userAuditService" ref="org.sakaiproject.userauditservice.api.UserAuditService"/>
         <property name="siteManageService" ref="org.sakaiproject.sitemanage.api.SiteManageService.webservice"/>
+        <property name="ltiService" ref="org.sakaiproject.lti.api.LTIService"/>
         <property name="clusterService" ref="org.sakaiproject.cluster.api.ClusterService"/>
         <property name="memoryService" ref="org.sakaiproject.memory.api.MemoryService"/>
         <property name="sqlService" ref="org.sakaiproject.db.api.SqlService"/>
