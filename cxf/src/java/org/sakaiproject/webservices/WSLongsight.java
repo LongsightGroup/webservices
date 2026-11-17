@@ -78,6 +78,8 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -2624,6 +2626,9 @@ public class WSLongsight extends AbstractWebService {
 				final String studentEid = students.get(entry.getKey());
 				final CourseGradeTransferBean cg = entry.getValue();
 				final String displayGrade = (cg != null && cg.getDisplayGrade() != null) ? cg.getDisplayGrade() : "";
+				final String calculatedGrade = (cg != null && cg.getCalculatedGrade() != null)
+						? new BigDecimal(cg.getCalculatedGrade()).setScale(10, RoundingMode.HALF_UP)
+								.setScale(2, RoundingMode.HALF_UP).toPlainString() : "";
 
 				Node student = dom.createElement("student");
 				course.appendChild(student);
@@ -2635,6 +2640,10 @@ public class WSLongsight extends AbstractWebService {
 				Node course_grade = dom.createElement("course_grade");
 				student.appendChild(course_grade);
 				course_grade.appendChild(dom.createTextNode(displayGrade));
+
+				Node calculated_grade = dom.createElement("calculated_grade");
+				student.appendChild(calculated_grade);
+				calculated_grade.appendChild(dom.createTextNode(calculatedGrade));
 			}
 
 			gradeResult = Xml.writeDocumentToString(dom);
